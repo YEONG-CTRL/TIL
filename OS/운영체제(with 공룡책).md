@@ -98,9 +98,10 @@ __하드웨어가 언제라도 interrupt를 trigger 시킬 수 있고, 이 trigg
     - access time 속도
         1. 제일 빠른건 cpu안의 registers
         2. 다음으로 cache 메모리
-        3. main memory , 즉 __RAM__ 
+        3. main memory , 즉 __RAM__ => 여기까지 휘발성 저장장치
         4. SSD(solid state disk)
-        5. HDD(하드디스크)
+        5. HDD(하드디스크)  
+        저장용량은 이 순서의 역순
 
 ### __I/O structure__  
 OS code 구현의 대부분은 I/O를 managing하는 과정이다.
@@ -169,9 +170,279 @@ system call을 호출하는 것을 __(OS) API__ 라 부른다.
 ex) standard C library : printf("Hello")
     - 프로세스를 제어하는 대표적인 system call 인 __fork(),wait() 등__
 
+# Process(Chpater 3)
+> Process is a program in execution(=실행중인 프로그램)
+
+<img width="343" alt="image" src="https://user-images.githubusercontent.com/79896709/169934511-dc7b98d0-a697-4c0d-bc51-a39a929ab437.png">
+
+
+- 운영체제 입장에서는 작업의 단위는 process
+- process가 실행되기 위해필요한 자원들 
+    - CPU
+    - Memory
+    - file
+    - I/O 장치
+
+- process의 memory layout은 여러 section으로 나누어진다
+    1. Text Section : executable code
+    2. Data Section : 전역변수들
+    3. Heap Section : 동적 메모리 할당을 했을 때 Heap영역에 메모리 확보
+    4. Stack Section: 함수 호출을 하면 매개변수, 리턴 주소, 지역 변수 등의 함수 스택이 쌓인다(일시적).  
+<img width="259" alt="image" src="https://user-images.githubusercontent.com/79896709/169923488-e2e0400a-1fca-4d09-b6f2-57bf6ea60e6e.png">
+
+- 프로세스의 5가지 생명주기 
+    1. New : 막 프로세스가 생성된 상태
+    2. Running : Cpu를 프로세스가 점유해서, CPU가 이를 실행하는 상태
+    3. Waiting : 다른 프로세스가 CPU를 점유해서 쓰고 있을 때, 기다리고 있는 상태(ex: IO가 끝날때까지 대기하는 상태)
+    4. Ready : waiting이 끝나고 차례가 와도 바로 CPU점유 불가, 레디 큐에 가서 대기하고 있는 상태.
+    5. Terminated : 모든 것을 끝내고 종료한 상태
+
+__process state diagram__   
+<img width="406" alt="image" src="https://user-images.githubusercontent.com/79896709/169934564-439d9fb3-7710-44aa-b9c5-82b9bc6b41df.png">
+
+
+- 프로세스 관리 방법  : PCB or TCB(process/task control block)  
+    - PCB가 가지고 있는 정보들
+    1. Process State
+    2. Program Counter : 프로그램이 있는 번지수
+    3. CPU register(Instruction, Data register정보들)
+    2와 3은 문맥(context)
+    4. CPU-scheduling 정보
+    5. 메모리 관리 정보
+    6. 계정 정보
+    7. I/O 상태 정보
+<img width="487" alt="image" src="https://user-images.githubusercontent.com/79896709/169927217-b25c148d-545a-4273-8784-64808256f5f5.png">
+PCB가 여러개
+
+__프로세스는__  
+1. 싱글 쓰레드 execution을 실행하는 프로그램 
+2. 싱글 쓰레드는 한번에 한 task만 처리 가능  
+<img width="177" alt="image" src="https://user-images.githubusercontent.com/79896709/169934605-2a740d70-5b74-4810-bbc8-d70d9b5f59e4.png">
+
+3. 현대적 운영체제는 process의 개념을 multiple thread로 확장
+4. 그리하여 한번에 하나 이상의 일을 수행
+
+__쓰레드는(바로 위의 프로세스의 쓰레드 개념과 다름)__
+: lightweight process
+- os가 pcb를 이용해 여러개 프로세스를 timesharing 하듯이, process도 여러개로 쪼갤 수 있지 않을까?
+- 프로세스를 여러개 하는 것보다, 쓰레드를 여러개 하는 것의 장점이 더 큼 
+    - 멀티 쓰레딩이 멀티 프로세싱 보다 대세.
+
+## __Process Scheduling__
+- __multiprogramming(multiprocessing)__ 의 목적은: CPU사용을 최대화하기 위해, 동시에 여러 프로세스를 실행시키는 것.
+- __time sharing__ 의 목적은 : CPU코어 혹은 프로세스를 프로세스간에 아주 자주 스위치해서, 사용자 입장에서는 각 프로그램이 동시에 돌고 있는 것처럼 보이게 하는 것.
+
+- Scheduling Queues:  
+    - Process가 system에 들어온 후, 대기열에서 대기를 함(즉 __ready queue__ 에서 대기중) 그러고 있다가 cpu가 가능해지면 그때 cpu를 획득
+    - 특정 이벤트가 일어나길 기다리고 있는 프로세스는 __wait queue__ 에 위치
+    - 이 queue들은 PCB의 LinkedList로 구현됨  
+
+__Queuing diagram__
+<img width="334" alt="image" src="https://user-images.githubusercontent.com/79896709/169929556-bef1ed1a-d522-4508-a994-fb93e47681df.png">
+
+- Context Switch(문맥 교환)
+: process의 context는 PCB에 나타난다
+    - interrupt가 일어났을때, system은 running process의 current context를 저장,
+    - 그리하여 다시 CPU를 획득했을 때, context를 restore 가능
+    - context switch는 
+        1. cpu core를 다른 프로세스에게 넘겨주는 것
+        2. 현재프로세스의 _state를 저장_ (문맥 저장)
+        3. 새로 CPU를 획득할 프로세스의 _state를 restore함_ 
+## __Opertaions on Process__
+운영체제는 process creation, process termination에 대한 메커니즘을 제공해야 한다.  
+- 프로세스는 새로운 프로세스를 만들 수 있다(fork).
+    - 만드는 프로세스 : Parent process
+    - 만들어진 포로세스 : child process  
+    => 이를 통해 process tree 성립
+
+- execution의 두가지 가능성
+    1. parent가 children과 함께 concurrently하게 실행됨
+    2. parent는 child가 terminated될때까지 wait한다
+
+<img width="469" alt="image" src="https://user-images.githubusercontent.com/79896709/169934747-1e1b0f84-12d2-4c4b-82a8-b2ed23c338cb.png">
+
+
+- address-space의 두가지 가능성
+    1. child process는 parent process의 복제품
+    2. child process는 자신에게 적재될 새로운 프로그램을 가지고 있다
 
 
 
+- 프로세스 종료 : 마지막 문장을 execute할때 종료되거나, 
+중간에 강제로 끝내고 싶으면 eixt() 시스템 콜 호출.  
+OS는 메모리,파일 등을 회수하고 끝냄 
+
+- zombie와 orphan
+__zombie process__ : 종료됐지만, 그것의 parent가 wait()하지 않은 프로세스. 부모가 있는데 신경을 안쓰는 상태. 
+-> daemon등의 background process에 사용
+__orphan process__ : 부모 프로세스가 wait()를 호출하는 대신 종료된 프로세스. 부모가 죽은 상태.
+
+## __프로세스의 생성__
+- UNIX-like OS에서 새로운 프로세스는 __fork()__ 시스템 콜로 생성됨
+- child process는 부모 process의 _address space의 복사본_ 을 가지고 있다
+- 이 두개의 프로세스들은 fork() 시스템 콜 이후로 execution을 진행한다.
+- 차이점은:
+    1. child process의 fork()에 대한 __return code 0__
+    2. __nonzero pid__ 를 리턴하면 parent process  
+
+```C
+#include <stdio.h>
+#include <unistd.h>
+
+int main()
+{
+    pid_t pid;
+    pid = fork(); // 분기
+    printf("Hello, Process! %d\n", pid);
+
+    return 0;
+}
+```
+<img width="380" alt="image" src="https://user-images.githubusercontent.com/79896709/170009269-9cb62843-3480-4d4b-972d-590def3a95f4.png">
 
 
 
+- fork() 시스템 콜, 이후 일어나는 일
+    1. parent process의 address space를 그대로 복제
+    2. parent process는 자기 할일 계속 함 
+    3. 만약 child가 도는 동안 부모가 할 일 없다면, child기다리기 위해 wait() 시스템 콜 가능 
+    4. wait()큐 안에서 child 프로세스가 terminate 돼 interrupt 걸어주기를 기다림
+
+
+- 밑의 경우에는 0보다 큰 pid가 나중에 출력됨..wait()콜로 인해
+```C
+#include <stdio.h>
+#include <unistd.h>
+#include <wait.h>
+
+int main()
+{
+    pid_t pid;
+    pid = fork(); // 분기 - p0과 p1로로 
+    if (pid >0)  // po에선 pid가 0보다 크기에 wait호출, p1에서는 0이기에 wait 호출되지 않음 
+        wait(NULL);
+    printf("Hello, Process! %d\n", pid);
+
+    return 0;
+}
+```
+<img width="442" alt="image" src="https://user-images.githubusercontent.com/79896709/170009528-3308fd6d-cfef-4077-a79c-f07ad190c282.png">
+    
+
+p.154 출력되는 value의 값은?
+```C
+#include <stdio.h>
+#include <unistd.h>
+#include <wait.h>
+
+int value = 5;
+int main() 
+{
+    pid_t pid,
+    pid = fork();
+
+    if (pid == 0) { // child process
+        value += 15;
+        return 0;
+    }
+    else if (pid > 0) { // parent process
+        wait(NULL);
+        printf("Parent : value = %d\n", value); 
+    }
+}
+```
+<img width="380" alt="image" src="https://user-images.githubusercontent.com/79896709/170009650-34c1fb1d-33b6-4a28-811c-ec71c2deaf04.png">
+
+
+p.154 -> 몇개의 프로세스가 만들어지는가?
+```C
+#include <stdio.h>
+#include <unistd.h>
+#include <wait.h>
+
+int main() 
+{
+    fork();
+    fork();
+    fork();
+
+    return 0
+}
+```
+<img width="197" alt="image" src="https://user-images.githubusercontent.com/79896709/170009756-bc661186-fccc-45a6-a1fe-fdc1feb561d9.png">
+
+
+p.905 -> 몇개의 프로세스가 만들어지는가?
+```C
+#include <stdio.h>
+#include <unistd.h>
+
+int main() 
+{
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        pid = fork();
+        printf("Hello, fork %d\n", pid); // 16개 나옴 
+    }  
+
+    return 0;
+}
+```
+<img width="209" alt="image" src="https://user-images.githubusercontent.com/79896709/170009843-2747d247-b954-4925-b380-21c86de53af0.png">
+
+
+- __execlp__ :프로세스는 이전과 아예 새로운 일을 하고 싶을 때 fork()를 통해 분기함.  
+ex) launchre 프로그램(P0):  
+새로운 버전이 있다면 업데이트함.    
+새로운 버전 "없다면" 원래 실행 시키려는 프로그램(P1) 실행시킴(fork).   
+이때,업데이트는 a.out이고, 원래 실행하려고 했던 프로그램은 b.out.  
+근데 fork를 하면 a.out을 복사해서 P1의 메모리 레이아웃에 덮어씀  
+이때 b.out을 메모리 레이아웃에 덮어쓰는 역할을 하는 __execlp__ 를 통해서 b.out을 메모리 컨텍스트에 올림 
+
+p.905 LINE J는 reachable한가 ?
+```C
+int main()
+{
+    pid_t pid;
+    pid = fork();
+
+    if (pid == 0) { //child process
+        execlp("/bin/ls", "ls", NULL); //execlp로 ls실행
+        printf("LINE J\n");
+    } else if (pid >0) { //parent process
+        wait(NULL);
+        printf("child comlete\n");
+    }
+
+    return 0;
+}
+```
+<img width="419" alt="image" src="https://user-images.githubusercontent.com/79896709/170010090-e3caca92-6945-4e9b-93ee-c992ba332f20.png">
+
+
+
+p.905 PID값들은?
+```C
+int main()
+{
+    pid_t pid, pid1;
+    pid = fork();
+
+    if (pid == 0) { //child process
+        pid1 = getpid(); // 자신의 pid 알아내는 시스템 콜
+        printf("child:pid = %d\n", pid); // 0 
+        printf("child:pid1 = %d\n", pid1); // 자기 pid
+    } else if (pid >0) { //parent process
+        wait(NULL);
+        pid1 = getpid();
+        printf("parent:pid = %d\n", pid); // child의 pid
+        printf("parent:pid1 = %d\n", pid1); // 부모의 pid
+    }
+
+    return 0;
+}
+```
+__정리!__ 
+> OS 스케줄러는 n개의 프로세스를 concurrent하게 실행시키기 위해서 cpu time-sharing을 한다.   
+이때, 이를 위해 CPU의 점유정보(register들의)를 저장하고, 복원하는데, 이것이 __context switching__ 이다. 
