@@ -446,3 +446,81 @@ int main()
 __정리!__ 
 > OS 스케줄러는 n개의 프로세스를 concurrent하게 실행시키기 위해서 cpu time-sharing을 한다.   
 이때, 이를 위해 CPU의 점유정보(register들의)를 저장하고, 복원하는데, 이것이 __context switching__ 이다. 
+
+## 프로세스간 통신
+- 프로세스의 Concurrent 실행의 두가지 경우의 수
+    1. independent : 프로세스들이 자신의 메모리 영역을 가지고, 서로 공유하는 데이터나, 통신 없이 자신의 일을 함.
+    2. cooperating : 프로세스간에 영향을 주고받음. 데이터를 공유하거나, 메시지를 주고받는다.  
+    -> 이때, coopertaing process들간의 문제를 해결하는 __IPC(Inter Process Commnunication)__  
+
+- IPC메커니즘은 data를 교환, 즉 보내고 받는 과정을 허용함.
+- IPC의 두가지 모델
+    1. 공유 메모리 사용  
+    <img width="389" alt="image" src="https://user-images.githubusercontent.com/79896709/170155513-b5a4fdc9-d998-4018-909c-6fc74cb3d4d0.png">  
+
+
+
+    2. 메시지 사용  
+
+        <img width="382" alt="image" src="https://user-images.githubusercontent.com/79896709/170155571-2f0d00aa-49d5-4427-a8a1-5e286a14679e.png">
+    
+### __IPC in Shared memory__
+- 생산자 - 소비자 문제 : 생산자는 정보를 생산하고, 소비자는 정보를 소비하는 모델.  
+    - 컴파일러가 어셈블리 코드를 생성하면, 어셈블러는 이 코드를 소비하여 기계어를 생성.
+    - 브라우저가 request를 하면, 웹 서버가 HTML파일을 전송(생산자), 브라우저는 이를 소비하여 화면을 띄워줌
+- 생산자-소비자 문제를 생산자 process와 소비자 process로 나눠서 생각
+    1. producer와 consumer는 자신들의 할일을 함(concurrently)
+    2. 이때, 중간에 buffer를 사용하여,
+        - producer는 buffer에 보내고 싶은 것을 채우고,
+        - 소비자는 버퍼에 담긴 것을 가져간다.
+    - 이때, 버퍼는 한계가 정해진 bounded 버퍼이기에, 버퍼가 가득 찰시에, 생산자는 wait하며 기다려야 한다.  
+    소비자는 버퍼가 비어있으면, 버퍼가 찰 때까지 wait해야 한다.
+    > 따라서,__버퍼를 shared memory로__ 만들면 된다
+
+<img width="379" alt="image" src="https://user-images.githubusercontent.com/79896709/170161503-5bf3f958-03c2-47ed-bedf-44dcef7e5e6e.png">
+
+
+__shared memory 방식의 문제__  
+:메모리 영역을 공유하게 되면, 메모리 영역에 접근하고, 이를 받아오는 과정을 application 프로그래머가 명시적으로 모두 다 작성해야 함.  
+- 다시말해, p와 q가 여러개인데, 이를 하나의 버퍼가 공유할때, 응용프로그램 짜는 사람이 이를 다 관리해줘야 함.
+
+이 문제를 해결하기 위해, __Message_passing__ 사용.  
+: OS가 shared memory에 관한 복잡한 문제들을 알아서 해결함.(Message-passing facility)  
+- Message-passing facility의 기능은 단순한 __send, receive__ 만 존재함.
+- 이때, P와 Q사이에는 __Communication Links__ 가 존재.
+    - send와 receive의 두가지 시스템 콜만 제공.
+    - 이 link를 구현하는 여러가지 방법
+        1. direct OR indirect
+        2. synchronous(동기) OR asynchronous(비동기)
+        3. automatic OR explicit
+    
+1. __Direct / Indirect__ 
+: 각 프로세스가 커뮤니케이션하고자 하는 상대방을 알고 있는 경우. 명시적으로 발신자와 수령자의 이름을 붙임.
+- Direct
+- send(P, message) : P프로세스에게 메시지 보냄.
+- receive(Q, message) : Q프로세스로부터 메시지를 받음.
+- 이 경우, PQ사이에 커뮤니케이션 링크가 __자동으로__ 생성됨. 또한 이 링크는 두개 프로세스쌍 간에, __하나만 있을 수 있음__
+
+Indirect시, PQ사이에는 __매개체__ 가 필요함.
+: 메시지는 __Mailboxes__ or __ports__ 로 부터 보내고 받아짐.(8000포트할때 그 포트 맞음)    
+- ports는 객체이다.
+- send(A, message): port A에 메시지를 보낸다.
+- receive(A, message) : port A로부터 메시지를 받는다.
+- 두개의 프로세스 사이에 shared box가 있을때, 비로소 링크가 생성됨.
+- 이 링크는 두개의 프로세스 이상을 연결할 수 있음.
+
+_OS는_ 
+- 프로세스가 새로운 메일박스를 만들 수 있게 해주고,
+- 메일박스를 통해 메시지를 주고받을 수 있게 해주고,
+- 메일박스를 삭제할 수 있게 해주면 된다.
+
+이 indirect를 구현할때의 디자인 옵션들
+1. __Synchronous or Asynchronous__ (Blocking or non-blocking)  
+<img width="418" alt="image" src="https://user-images.githubusercontent.com/79896709/170161572-f349c2f4-a6f0-42ff-aeb4-85fd8cac940d.png">
+
+- blocking = synchronous의 뜻은? : blocking I/O를 사용했을 시, p는 전송이 끝날때까지 기다렸다, 끝나고 자신의 일을 함.  
+따라서, send 호출 다음 문장으로 넘어왔단 뜻은, Q가 send 분량을 다 받았다는 뜻이기도 함.  
+- 반대로 asynchrounous하다면, p는 보내놓고 자신의 일을 하고 있는데, Q가 중간에 다운돼서 receive를 못하더라도, P는 하던일 계속함.  
+
+Ex) 영화 다운 후 -> 요금부과 시, synchrounous면 다운이 완료될때까지 요금이 부과되지 않지만, asynchronous라면 다운하다가 중간에 멈추더라도 요금은 부과 됨.
+
