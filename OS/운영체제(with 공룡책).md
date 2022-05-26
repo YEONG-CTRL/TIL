@@ -1,7 +1,6 @@
 # 목차
 - [운영체제란? & O/S Structure](#운영체제란-무엇인가?)
-    - [운영체제란 무엇인가?](#운영체제란-무엇인가?)
-
+- [Process](#Process(Chapter-3))
 
 <br></br>    
 
@@ -548,72 +547,11 @@ Ex) 영화 다운 후 -> 요금부과 시, synchrounous면 다운이 완료될�
 ``` mmap(0,SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);``` 
 
 
-__생산자 P0__ 
-```C
+ [ __생산자 P0__ ](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter3/3.16_shm_producer.c)
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <fcntl.h>
-#include <sys/shm.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
 
-int main()
-{
-    const int SIZE = 4096; // shared memory의 크기
-    const char *name = "OS"; // 이름 
-    const char *message_0 = "Hello"; // 두개의 메시지
-    const char *message_1 = "Shared Memory!\n";
+[ __소비자 P1__ ](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter3/3.16_shm_consumer.c)
 
-    int shm_fd; // shared memory의 file descriptor interger로 선언
-    // file descriptor란 프로세스가 특정 파일에 접근할 때 사용하는 추상적인 값 
-    char *ptr; // shared memory로의 pointer
-
-    // shared memory 객체 특정
-    shm_fd = shm_open(name, O_CREAT | O_RDWR, 0666);
-
-    // shared memory size 특정
-    ftruncate(shm_fd, SIZE);
-
-    ptr = (char *)mmap(0,SIZE,PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
-    // shared memory영역을 shm_fd가 잡음
-
-    sprintf(ptr, "%s", message_0); 
-    ptr += strlen(message_0); // message_0 쓰고 포인터 옮기고
-    sprintf(ptr, "%s", message_1);
-    ptr += strlen(message_1); // 마찬가지로 message_1 쓰고 포인터 옮김(Hello, Shared Memory! 맨 끝에 포인터 위치 )
-}
-
-// gcc 3.16_shm_producer.c -lrt -> 컴파일 명령어
-```
-__소비자 P1__ 
-```C
-int main()
-{
-    const int SIZE = 4096; 
-    const char *name = "OS"; 
-
-    int shm_fd; 
-    char *ptr; 
-
-    shm_fd = shm_open(name, O_RDONLY, 0666);
-
-    ptr = (char *)mmap(0,SIZE,PROT_READ, MAP_SHARED, shm_fd, 0);
-    // write 때와 똑같은 shared memory 공간이 리턴됨 
-
-    printf("%s", (char *)ptr);
-    // ptr이 가르키는 것은 아까 proucer가 써놓은 영역,
-    // 그렇기에 "Hello, Shared Memory!" 그대로 출력됨
-
-    shm_unlink(name);
-    // shared memory 영역 삭제해줌
-    // unlink해줬기에, 이 스크립트 컴파일 후 만들어진 실행파일 실행하면, shared memory를 가르키지 않기에 Segementaion fault가 나게됨  
-
-    return 0;
-}
-
-```
 
 ### __Pipes__ 
 : Shared memory방식은 일일히 open해서 쓰고, 읽고, 닫아주고 해야 하기에 번거로운 과정임.  
@@ -640,7 +578,7 @@ int main()
     fd[1] // write end of the pipe
     ```
 
-__pipe.c 파일 링크__
+[ __pipe.c__ ](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter3/pipe.c)
 
 - __Named pipes__ 
     - 파이프에 이름을 붙여주었기에 parent-child relationship 필요없음.
@@ -661,11 +599,9 @@ Java가 제공하는
 - DatagramSocket class : UDP소켓(connectionless)
 - MultiSocket class : 특정한 recipients에게만.
 
-Server
-파일링크ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㄴㅇ르으느르ㅏㄴㅇㄹ
+[__Server__](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter3/DateServer.java)
 
-Client
-파일링크ㅡ크ㅡㅡㅡㅡ
+[__Client__](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter3/DateClient.java)
 
 __RPC__ 
 - RPCs(Remote Procedure calls) - IPC의 확장개념
