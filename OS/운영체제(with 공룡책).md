@@ -170,7 +170,7 @@ system call을 호출하는 것을 __(OS) API__ 라 부른다.
 ex) standard C library : printf("Hello")
     - 프로세스를 제어하는 대표적인 system call 인 __fork(),wait() 등__
 
-# Process(Chpater 3)
+# Process(Chapter 3)
 > Process is a program in execution(=실행중인 프로그램)
 
 <img width="343" alt="image" src="https://user-images.githubusercontent.com/79896709/169934511-dc7b98d0-a697-4c0d-bc51-a39a929ab437.png">
@@ -524,3 +524,155 @@ _OS는_
 
 Ex) 영화 다운 후 -> 요금부과 시, synchrounous면 다운이 완료될때까지 요금이 부과되지 않지만, asynchronous라면 다운하다가 중간에 멈추더라도 요금은 부과 됨.
 
+## IPC System의 예시
+1. Shared Memory: POSIX Shared Memory
+: Portable Operating System Interface(for unix)
+
+
+2. Message Passing: Pipes
+: UNIX의 기본적인 파이프 구조
+
+### __POSIX__
+: memory-mapped file을 이용해서 버퍼(shared memory)영역을 잡는다. 하드디스크가 아닌 메모리에 파일을 생성하여 성능을 향상시킴.
+
+1. 일단 shared-memory object를 만든다  
+``` fd = shm_open(name, O_CREAT | O_RDWR, 0666);```
+  
+    이름이 O_CREAT, ORDWR은 권한  
+
+2. 객체의 크기를 정의함  
+``` ftruncate(fd, 4096) ```  
+    Read, write할때 정크의 크기를 4096으로 준다
+
+3. memory-mapped filed을 shared memory에 매핑시켜준다  
+``` mmap(0,SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);``` 
+
+
+__생산자 P0__ 
+```C
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <fcntl.h>
+#include <sys/shm.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+
+int main()
+{
+    const int SIZE = 4096; // shared memory의 크기
+    const char *name = "OS"; // 이름 
+    const char *message_0 = "Hello"; // 두개의 메시지
+    const char *message_1 = "Shared Memory!\n";
+
+    int shm_fd; // shared memory의 file descriptor interger로 선언
+    // file descriptor란 프로세스가 특정 파일에 접근할 때 사용하는 추상적인 값 
+    char *ptr; // shared memory로의 pointer
+
+    // shared memory 객체 특정
+    shm_fd = shm_open(name, O_CREAT | O_RDWR, 0666);
+
+    // shared memory size 특정
+    ftruncate(shm_fd, SIZE);
+
+    ptr = (char *)mmap(0,SIZE,PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    // shared memory영역을 shm_fd가 잡음
+
+    sprintf(ptr, "%s", message_0); 
+    ptr += strlen(message_0); // message_0 쓰고 포인터 옮기고
+    sprintf(ptr, "%s", message_1);
+    ptr += strlen(message_1); // 마찬가지로 message_1 쓰고 포인터 옮김(Hello, Shared Memory! 맨 끝에 포인터 위치 )
+}
+
+// gcc 3.16_shm_producer.c -lrt -> 컴파일 명령어
+```
+__소비자 P1__ 
+```C
+int main()
+{
+    const int SIZE = 4096; 
+    const char *name = "OS"; 
+
+    int shm_fd; 
+    char *ptr; 
+
+    shm_fd = shm_open(name, O_RDONLY, 0666);
+
+    ptr = (char *)mmap(0,SIZE,PROT_READ, MAP_SHARED, shm_fd, 0);
+    // write 때와 똑같은 shared memory 공간이 리턴됨 
+
+    printf("%s", (char *)ptr);
+    // ptr이 가르키는 것은 아까 proucer가 써놓은 영역,
+    // 그렇기에 "Hello, Shared Memory!" 그대로 출력됨
+
+    shm_unlink(name);
+    // shared memory 영역 삭제해줌
+    // unlink해줬기에, 이 스크립트 컴파일 후 만들어진 실행파일 실행하면, shared memory를 가르키지 않기에 Segementaion fault가 나게됨  
+
+    return 0;
+}
+
+```
+
+### __Pipes__ 
+: Shared memory방식은 일일히 open해서 쓰고, 읽고, 닫아주고 해야 하기에 번거로운 과정임.  
+반대로 Pipe는 간단함.  
+- _Pipe 구현의 이슈들_  
+    1. unidirectional(단방향) OR bidirectional?
+    2. two-way communication의 경우에, half-duplex냐, full-duplex냐?
+    > half : 통신선 두개(송신선/수신선)  
+    > full : 통신선 하나
+    3. 통신하는 프로세스간에 relationship이 존재해야 하는가?
+    4. pipes는 network을 통해서 통신할 수 있는가?
+        - 네트워크에서 쓸 수 있는 파이프 : __소켓__
+
+- __Ordinary pipes__ 
+    - 프로세스 바깥에서 접근 불가 
+    - 일반적으로, 부모 프로세스가 파이프를 만들고, 이를 통해 child process와 통신함.
+    <img width="633" alt="image" src="https://user-images.githubusercontent.com/79896709/170473184-ab9d693a-f881-4e06-9ed9-2cbf7c53d85c.png">
+
+    - unidirectional한(단방향)인 파이프로 two-way communication하려다 보니 파이프를 두개 사용 
+
+    ```C
+    pipe(int fd[])
+    fd[0] // read end of the pipe
+    fd[1] // write end of the pipe
+    ```
+
+__pipe.c 파일 링크__
+
+- __Named pipes__ 
+    - 파이프에 이름을 붙여주었기에 parent-child relationship 필요없음.
+
+
+### __Clinet-server system에서의 communication__ 
+여태까지 해왔던 것은 컴퓨터 "내부"의 통신이고, 네트워크 안에서 다른 컴퓨터의 프로세스와 통신을 하고싶다면 어떻게 해야할까?
+> __Socket__ 의 등장  
+
+- 양 상대방 컴퓨터를 IP address를 통해 특정.  
+- 이때 파이프는 어떻게 특정하는가? __Port__ 사용 
+- 이 IP와 Port를 하나로 묶은것이 Socket
+
+- Socket은 소통을 위한 __원격지의 두 endpoint__
+
+Java가 제공하는 
+- __Socket class__ : TCP소켓(connection oriented)
+- DatagramSocket class : UDP소켓(connectionless)
+- MultiSocket class : 특정한 recipients에게만.
+
+Server
+파일링크ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㄴㅇ르으느르ㅏㄴㅇㄹ
+
+Client
+파일링크ㅡ크ㅡㅡㅡㅡ
+
+__RPC__ 
+- RPCs(Remote Procedure calls) - IPC의 확장개념
+: 네트워크에 존재하는 원격에 있는 프로세스들 간의 추상화된 procedure call  
+- 말이 좀 어려운데, 네트워크를 통해 원격에 있는 함수를 호출하는 것. 이라 생각하면 될듯.
+- client는 remote host의 procedure를 일으킨다.
+    - RPC system은 client에 __stub__ 을 넘겨줌.
+    - client-side의 stub은 parameter들을 __marshaling__ 한다
+        - 원격 서비스를 이용하는 두 API까지 주고받는 데이터를 정렬.
+        - mashaling한 객체를 서로 주고받는 것.
