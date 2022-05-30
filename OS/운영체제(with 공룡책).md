@@ -1,6 +1,7 @@
 # 목차
 - [운영체제란? & O/S Structure](#운영체제란-무엇인가?)
-- [Process](#Process(Chapter-3))
+- [Process](#process)
+- [Thread](#thread와-concurrency)
 
 <br></br>    
 
@@ -169,7 +170,7 @@ system call을 호출하는 것을 __(OS) API__ 라 부른다.
 ex) standard C library : printf("Hello")
     - 프로세스를 제어하는 대표적인 system call 인 __fork(),wait() 등__
 
-# Process(Chapter 3)
+# Process
 > Process is a program in execution(=실행중인 프로그램)
 
 <img width="343" alt="image" src="https://user-images.githubusercontent.com/79896709/169934511-dc7b98d0-a697-4c0d-bc51-a39a929ab437.png">
@@ -612,3 +613,191 @@ __RPC__
     - client-side의 stub은 parameter들을 __marshaling__ 한다
         - 원격 서비스를 이용하는 두 API까지 주고받는 데이터를 정렬.
         - mashaling한 객체를 서로 주고받는 것.
+
+# Thread와 Concurrency
+- 하나의 프로세스는 여러개의 threads of control을 가질 수 있다.
+
+__Thread__ 
+- a lightweight process(LWP)
+- CPU utilization의 basic unit(가장 기본적인 cpu를 점유하는 단위)
+- 각 쓰레드는 thread ID, program counter, register set, stack 으로 구성.
+<img width="407" alt="image" src="https://user-images.githubusercontent.com/79896709/170926390-65ba2b61-5fc4-46b4-9762-54c200006cc1.png">
+
+__Multithreading의 장점__  
+
+<img width="419" alt="image" src="https://user-images.githubusercontent.com/79896709/170926774-76c16975-7709-43c0-b62a-2e79ffdf2689.png">
+
+
+1. Responsiveness  
+: 지속적인 실행이 가능함. 유저 인터페이스등을 처리할때, blocking없이 계속 execution 가능하다.
+2. Resource Sharing  
+: 프로세스간 IPC의 경우는, 중간에 shared memory나 메시지 큐가 통신을 위해 필요하다.  
+ 그러나 쓰레드들은 code나 데이터 영역을 공유하기 때문에 굳이 shared memory 등이 없이도 쓰레드끼리는 리소스를 공유할 수 있다.  
+3. Econmomy  
+: 배틀그라운드 전체 코드를 복사해서 process creation을 하는 것보다, 그 안에서 여러 쓰레드를 사용하는 것이 훨씬 경제적이다.  
+context switch의 경우에도, PCB를 옮기는 것보다 thread의 context의 switch가 훨씬 간단하다.
+4. scalability  
+: 프로세스는 multiprocessor architecture의 이점을 누릴 수 있다.
+
+- __Threads in Java__ 
+: 자바에서 명시적으로 쓰레드를 만드는 세가지 방법
+1. extends from the Thread class
+- Thread Class에서 비롯된 새로운 클래스를 만든다.
+- 그리고 이것의 public void run() 메서드를 오버라이드 한다.
+- 다중 상속이 지원되지 않는 자바 특성상, Thread 클래스 상속받고 나면 다른 클래스 상속받지 못하는 단점이 생긴다.
+
+    ```Java 
+    class MyThread1 extends Thread {
+        public void run() {
+            try {
+                while (true) {
+                    System.out.println("Hello, Thread!");
+                    Thread.sleep(500); // 약 0.5초
+                }
+            }
+            catch (InterruptedException ie) {
+                System.out.println("I'm interrupted");
+            }
+        }
+    }
+
+    public class ThreadExtendEx {
+        public static final void main(String[] args) {
+            MyThread1 thread = new MyThread1();
+            thread.start();
+            System.out.println("Hello, My Child!");
+        }
+    }
+    ```
+    결과는 Hello, My Child! 이후 Hello, Thread!가 0.5초에 한번씩 실행된다.
+    1. start()로 새로운 쓰레드가 생기고
+    2. main에서 마저 "Hello, My Child!"까지 실행한 이후 
+    3. 쓰레드간의 context switch가 일어나서 run()이 실행돼서 Hello, Thread!실행 
+
+2. Implementing the Runnable interface
+- Runnable interface를 implement하는 새로운 클래스 만들고, 
+- 그것의 public void run() 메서드 오버라이드.
+
+    ``` Java
+    class MyThread2 implements Runnable {
+        public void run() {
+            try {
+                while (true) {
+                    System.out.println("Hello, Runnable!");
+                    Thread.sleep(500);
+                }
+            }
+            catch (InterruptedException ie) {
+                System.out.println("I'm interrupted"); 
+            }
+        }
+    }
+
+    public class ThreadExample2 {
+        public static final void main(String[] args) {
+            Thread thread = new Thread(new MyThread());
+            thread.start();
+            System.out.println("Hello, my runnalbe child")
+        }
+    }
+    ```
+
+3. Lambda expression 활용(익명쓰레드)
+- 새로운 클래스 선언하기 귀찮다!
+- 자바 1.8 부터 지원
+
+    ```Java
+    public class ThreadExample3 {
+        public static final void main(String[] args) {
+            Runnable task = () -> {
+                try {
+                    while (true) {
+                        System.out.println("Hello, Lambda Runnable");
+                        Thread.sleep(500);
+                    }
+                }
+                catch (InterruptedException ie) {
+                System.out.println("I'm interrupted"); 
+                }
+            };
+            Thread thread = new Thread(task);
+            thread.start();
+            System.out.println("Hello, my Lambda child")
+        }
+    }
+    ```
+
+- __부모 쓰레드의 대기__ 는 프로세스의 wait대신, __join__ 을 활용한다.
+    ```Java
+    public class ThreadExample4 {
+        public static final void main(String[] args) {
+            Runnable task = () -> {
+                    for (int i = 0; i < 5; i++) {
+                        System.out.println("Hello, Lambda Runnable");
+                    }
+            };
+            Thread thread = new Thread(task);
+            thread.start(); // child thread시작 
+            try {
+                thread.join(); // main thread 멈춤 // childe thread 5번 다 실행하고
+            }
+            catch (InterruptedException ie) {
+                System.out.println("parent thread is interrupted");
+            }
+            System.out.println("Hello, my joined child") // 다시 재개해서 이거 실행
+        }
+    }
+    ```
+
+-쓰레드의 종료는 __interrupt__ 를 걸어주면 된다.
+```Java
+    public class ThreadExample5 {
+        public static final void main(String[] args) throws InterruptedException {
+            Runnable task = () -> {
+                try {
+                    while (true) {
+                        System.out.println("Hello, Lambda Runnable"); // 1.5번 가량 실행
+                        Thread.sleep(100);
+                    }
+                }
+                catch (InterruptedException ie) {
+                    System.out.println("I'm interrrupted"); // 2. interrupt걸려서 실행
+                }
+            };
+            Thread thread = new Thread(task);
+            thread.start(); // child thread시작 
+            thread.sleep(500);
+            thread.interrupt();
+            System.out.println("Hello, my Interrupted child") // 3.마지막으로 실행
+            // 이 순서가 보장되지 않는다.
+            // 부모 쓰레드는 interrupt가 걸리고 자기 할일을 하고, 자식은 interrupt받으면 자기 할일을 하고 종료하기에 누가 먼저라고 할 수는 없다.
+        }
+    }
+```
+
+- MultiCore 시스템에서의 Multithreading 
+    - 여러개의 core를 concurrency 측면에서 더 효율적으로 사용할 수 있다
+    - 4개의 쓰레드를 가진 application을 생각해보자
+        1. single-core : thread들은 시간 사이사이에 interleaved(끼워넣어질) 될것 -> time-sharing
+        2. multiple-cores : 몇개의 쓰레드들은 병렬적으로 돌 수 있다
+        <img width="426" alt="image" src="https://user-images.githubusercontent.com/79896709/170939082-e421c288-949a-4d7b-b67e-3f250ef2223d.png">
+
+        -> 이때, multicore시스템에서는 __해결해야할 문제__ 들이 생긴다.
+            1. Identifying task: 어떤 부분들이 seperate하게 실행될 수 있는지 찾아내는 능력
+                ex) 합을 구하는 과정은 다 나눌 수 있음, 그런데, 정렬하는 과정은 어디까지 쪼개야할지 어려움
+            2. Balance : 데이터를 eqaul하게 나눠서 equal하게 작업할 수 있게 해야함.
+            3. Data Spliting : 2번의 연장선.
+            4. Data Dependency : task의 실행이 잘 동기화돼서 data dependency를 지킬 수 있어야 함.
+            5. single thread보다 테스트와 디버깅이 훨씬 어려워짐.
+
+- 병렬처리(parallelism)의 유형
+    1. 데이터 병렬성
+    <img width="526" alt="image" src="https://user-images.githubusercontent.com/79896709/170940375-ed8e16e7-5bea-4c8c-b58a-853a33e89dc8.png">
+
+    2. task 병렬성
+    <img width="533" alt="image" src="https://user-images.githubusercontent.com/79896709/170940450-8c9344c5-d4e6-4a7e-b773-f03f925424dc.png">
+
+    > 현재는 분산시스템이 도입됐기 때문에, data나 task 병렬성을 고려할 필요가 크게 없다.  
+
+- Amdahl의 법칙 : CPU코어는 무조건 많으면 좋은가??
+: 전부 다 병렬처리 할 수 있는 것이 아니면, 코어의 개수와 속도 향상속도가 정비례하지는 않는다.
