@@ -827,8 +827,8 @@ context switch의 경우에도, PCB를 옮기는 것보다 thread의 context의 
         2. Windows thread
         3. Java thread : 그런데 자바의 JVM은 운영체제에 종속적이기에, windows운영체제면 윈도우 쓰레드 사용하고, 유닉스 운영체제면 Pthread를 사용한다
 
-- Pthreads
-파일링크ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
+[Pthreads](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter4/pthread.c)
+
 
 ```C
 pid_t pid;
@@ -853,10 +853,8 @@ fork();
 
 2. 몇개의 별개의 쓰레드가 만들어지는가? => 2개
 
-4.19 파일링크ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
-
-
-4.17 파일링크00000000000  
+[예제 4.19](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter4/4exercise19.c)  
+[예제 4.17](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter4/exercise17.c)
 
 
 
@@ -872,4 +870,5 @@ __OpenMP__
 - parallel한 region만 지정해주면, 알아서 병렬적으로 실행이 된다.  
 - 컴파일러에게 parallel region에 대해 지시를 한다.  
 
-0penmp예제제제제제ㅔ제
+[Openmp 예시](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter4/openmp.c)  
+[Openmp 예시2](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter4/openmp2.c)
