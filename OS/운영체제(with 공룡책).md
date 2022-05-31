@@ -801,3 +801,75 @@ context switch의 경우에도, PCB를 옮기는 것보다 thread의 context의 
 
 - Amdahl의 법칙 : CPU코어는 무조건 많으면 좋은가??
 : 전부 다 병렬처리 할 수 있는 것이 아니면, 코어의 개수와 속도 향상속도가 정비례하지는 않는다.
+
+## 멀티쓰레딩
+
+### 쓰레드의 두가지 타입 
+<img width="462" alt="image" src="https://user-images.githubusercontent.com/79896709/171119235-32253409-28fa-48ff-aa78-e7a962fba7e8.png">
+  
+
+1. User 쓰레드 : 사용자 모드에서 사용하는 쓰레드.
+    - 커널의 위에서,
+    - 커널의 지원없이 관리된다.
+
+2. Kernel 쓰레드 : OS입장에서, 코어에서 직접 쓰레딩을 할 수 있는 쓰레드. 
+    - 운영체제에 의해 바로 지원되고 관리된다.
+
+- 유저 쓰레드와 커널 쓰레드의 세가지 관계
+    1. Many to One : 커널 쓰레드 하나가 여러 유저 쓰레드를 감당
+    2. One to One : 유저 쓰레드 하나에 커널 쓰레드 하나 
+    3. Many to Many : 다양한 유저 쓰레드가 다양한 커널쓰레드의 서비스를 받는다
+
+- _쓰레드 라이브러리_ 
+    - 쓰레드를 만들고 관리하는 API
+    - 최근에 자주 사용되는 라이브러리들은
+        1. POSIX Pthreads
+        2. Windows thread
+        3. Java thread : 그런데 자바의 JVM은 운영체제에 종속적이기에, windows운영체제면 윈도우 쓰레드 사용하고, 유닉스 운영체제면 Pthread를 사용한다
+
+- Pthreads
+파일링크ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
+
+```C
+pid_t pid;
+pid = fork();
+if (pid == 0) { /* child process*/
+    fork();
+    thread_create( . . .);
+}
+fork();
+```
+1. 몇개의 별개의 프로세스가 만들어지는가? => 6개  
+
+    a. fork()시 P0에서 P1 생성  
+    b. pid 가 0이 아닌 부모 프로세스는 맨 밑으로 가서 또 fork()해서 P2생성    
+
+    c. pid가 0인경우(p1인 경우) 도 fork()를 하기 때문에 P1을 복제한 P3가 생성됨.  
+
+    이때, thread_create()를 하기 때문에, P1과 P3는 thread를 만든다
+    따라서 쓰레드는 두개 생성  
+    
+    d. thread_create()이후 if문 벗어나서 fork()를 또 하기에, p1과 p3의 자식 p4, p5도 생성된다.
+
+2. 몇개의 별개의 쓰레드가 만들어지는가? => 2개
+
+4.19 파일링크ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ
+
+
+4.17 파일링크00000000000  
+
+
+
+__Implicit Threading__  
+멀티코어 시스템에서 멀티 쓰레딩을 구현하기는 너무 어렵기에, 이 어려움을 컴파일러나, run-time 라이브러리에게 넘긴다.  
+이를 위한 네가지 접근 방법.  
+1. Thread Pools : 여러개의 쓰레드를 pool에 저장해두고, 작업을 기다리게 한다.  
+2. Fork & Join : explicit threading 이지만, 이를 implicit하게 할 수도 있다.  
+3. OpenMP : 컴파일러 지시어를 통해 C/C++에서 병렬처리를 할 수 있다.
+4. GCD : 애플의 OS에서 쓰임  
+
+__OpenMP__  
+- parallel한 region만 지정해주면, 알아서 병렬적으로 실행이 된다.  
+- 컴파일러에게 parallel region에 대해 지시를 한다.  
+
+0penmp예제제제제제ㅔ제
