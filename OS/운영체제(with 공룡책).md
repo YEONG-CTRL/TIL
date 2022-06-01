@@ -872,3 +872,98 @@ __OpenMP__
 
 [Openmp 예시](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter4/openmp.c)  
 [Openmp 예시2](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter4/openmp2.c)
+
+
+# CPU Scheduling
+: Multiprogammed OS에서는 필수.  
+
+<img width="185" alt="image" src="https://user-images.githubusercontent.com/79896709/171405616-2407159c-e270-46bf-9ed3-90b84cae202f.png">
+ 
+
+멀티프로그래밍의 전제조건 : (성능이 매우 빨라서 놀고있는) CPU의 효용을 최대화 하는 것.  
+-> 시분할(timesharing)해서 CPU사이사이에 자원을 끼워넣어도 사용하는데 아무 문제가 없다는 것.  
+=> 이처럼, CPU Utilization을 높이기 위해 __CPU Scheduling__ 이 필요하다  
+
+<img width="349" alt="image" src="https://user-images.githubusercontent.com/79896709/171394826-3a88e96e-8c6a-43c8-abb3-cd8bdd00e106.png">
+  
+- read, write 등을 할때에는 CPU burst(주로 running 상태)  
+- I/O를 대기할때에는 I/O burst(Wating이나 Ready상태)  
+=> 이때, CPU burst time이 많으면 CPU bound,  
+ 반대 경우에는 I/O bound라고 한다.  
+
+ <img width="624" alt="image" src="https://user-images.githubusercontent.com/79896709/171395564-00d04b48-67b4-41a6-868f-27a92877c379.png">
+  
+I/O bound가 CPU bound보다 훨씬 빈도(개수가) 높다.  
+
+## __CPU Scheduler__  
+: 메모리에 로드돼 있는 ready상태(wait는 고려해줄 필요없고)의 프로세스들 중, CPU를 할당해줄 수 있는 프로세스를 선택하는 것이 문제.  
+  
+### __선택하는 방법들__   
+1. FIFO Queue  
+2. Priority Queue : 프로세스의 우선순위를 어떻게 결정할 것이냐?가 문제  
+
+### __Preemptive__ VS __Non-preemptive__  
+쉽게 말해, 강제로 쫓아낼 수 있냐(Preemptive) VS 못 쫓아내니깐 자발적으로 나오게 하냐(Non-preemptive)의 차이.  
+- Non-preemptive  
+CPU를 프로세스가 선점하고 나면, 프로세스가 release할 때까지(자발적으로 나올때까지) terminated나 switched 될 수 없다.  
+- preemptive
+스케줄러가 CPU를 선점한 프로세스를 쫓아낼 수 있다.  
+
+### __CPU 스케줄링에서 결정해야 할 것들__ 
+1. running 상태에서 waiting 가는 시기
+2. running 상태에서 ready 가는 시기
+3. waiting 상태에서 ready 가는 시기
+4. Process가 temination할 시기
+
+- 1&4는 Non-Preemptive해서 선택지가 없음(프로세스가 알아서 움직임)
+- 2&3은 Preemptive냐, Non-Preemptive냐를 선택할 수 있다.  
+
+### __dispatcher__ 
+: CPU 스케줄러에 의해 선택된 프로세스에게 CPU 코어에 대한 통제권을 주는 모듈.  
+- 프로세스 간 context switch를 하는 역할
+- user mode로 바꿔주는 역할
+- 유저 프로그램을 재개하기 위해 jumping to the proper location하는 역할  
+=> 한마디로, __스케줄러__ 는 어떤 프로세스로 변경할지 __선택__, __실제로 switching__  해주는 것은 __dispatcher__ (크게보면 스케줄러안에 디스패쳐)  
+  
+<img width="258" alt="image" src="https://user-images.githubusercontent.com/79896709/171405834-cabe0579-5b89-42d8-a64b-344c3308e1c1.png">
+
+
+이 dispatcher는 context switch마다 일어나기에 최대한 빨라야 함   
+
+
+<img width="598" alt="image" src="https://user-images.githubusercontent.com/79896709/171400674-75d8127d-4b71-4d89-b77b-abbd3e99c738.png">  
+
+이렇게 context switch가 얼마나 자주 일어나는지, 어떤 형태로 일어나는지 볼 수도 있다!
+  
+### 스케줄링의 목표  
+1. CPU utilization : CPU가 최대한 못놀게 하는 것.
+2. Throughput(단위시간 내 완결되는 프로세스 숫자)를 높이는 것.  
+3. __Turnaround time__ (프로세스 submission시간 부터 종료시간까지)를 최소화하는 것. (간트 차트의 처음부터 프로세스 끝까지)
+4. __Waiting time__ : 프로세스가 ready queue 에서 대기하고 있는 시간 최소화 하는 것.(이를 통해 1,2,3을 자연스럽게 높일 수 있다) (간트차트의 처음부터 프로세스 시작까지)
+5. Response time을 최소화하는 것(UI등)
+
+## CPU Scheduling problem(어떤 프로세스를 선택하는가)의 해결방안들 
+- FCFS : First Come, First Served -> 사장된 방법
+    - FIFO Queue로 구현
+- SJF : SRTF - Shortest Remaining Time First- 남은시간이 가장 짧은 것을 먼저 선택하자.
+- RR : Round-Robin - 시분할Time sharing을 해서, 정해진 시간만큼만 interleaving을 시키는 것.
+- Priority-based: 우선순위를 부여해서 선택하겠다.
+- MLQ(FQ): Multi-Level-Queue(Feedback Queue)
+  
+    
+FCFS를 사용하면 average wating time은,  
+- 프로세스의 CPU burst타임에 따라 크게 달라진다
+- FCFS는 non-preemptive한 알고리즘이기에, 
+    - CPU bound 프로세스 하나와(Pmax), 많은 I/O bound 프로세스가 있으면(P1,P2...) 
+    - __Convoy effect__ (호송효과): p1,p2,p3...가 Pmax전에 오면 다행인데, Pmax후에 오게된다면 Pmax가 CPU 다쓸때까지 계속 기다려야 함 -> waiting time이 엄청나게 늘어난다!
+    - 이래서 FCFS를 안쓰게 됨  
+
+    <img width="418" alt="image" src="https://user-images.githubusercontent.com/79896709/171405964-55050a48-3776-44d0-9922-0fe93af24832.png">
+  
+
+
+SJF는 각 프로세스의 next CPU burst를 가지고 계산함.
+- CPU에 next CPU burst가 가장 작은 아이를 배정하는 것.
+- 만약 next CPU burst가 같은 경우에는 FCFS사용.
+- FCFS 보다 waiting 과 turn around타임을 훨씬 줄일 수 있다.
+
