@@ -951,7 +951,7 @@ CPU를 프로세스가 선점하고 나면, 프로세스가 release할 때까지
 - MLQ(FQ): Multi-Level-Queue(Feedback Queue)
   
     
-FCFS를 사용하면 average wating time은,  
+__FCFS__ 를 사용하면 average wating time은,  
 - 프로세스의 CPU burst타임에 따라 크게 달라진다
 - FCFS는 non-preemptive한 알고리즘이기에, 
     - CPU bound 프로세스 하나와(Pmax), 많은 I/O bound 프로세스가 있으면(P1,P2...) 
@@ -962,8 +962,82 @@ FCFS를 사용하면 average wating time은,
   
 
 
-SJF는 각 프로세스의 next CPU burst를 가지고 계산함.
+__SJF__ 는 각 프로세스의 next CPU burst를 가지고 계산함.
 - CPU에 next CPU burst가 가장 작은 아이를 배정하는 것.
 - 만약 next CPU burst가 같은 경우에는 FCFS사용.
 - FCFS 보다 waiting 과 turn around타임을 훨씬 줄일 수 있다.
+- __average wating time을 최소한__ 으로 가져갈 수 있다.
+    - 시간이 짧은 프로세스부터 앞에 배정하다보니, 긴 프로세스의 waiting time은 늘어나지만, 그것보다 짧은 프로세스의 waiting time이 더 많이 줄어든다.  
+- 그런데, 구현을 할 수가 없다.
+    - __next cpu burst time을 알 방법이 없다.__
+    - 예측을 통해 근사적으로 구할 수는 있다.
+    - 예측의 방법: 프로세스가 과거에 CPU를 쓴 경향을 확인.
+    - 과거데이터를 통해 exponential average(지수평균)을 낸다
+    - Ln+1 = aLn + (1-a)Ln 
+        - Ln은 n번째 CPU burst time, Ln+1은 이번에(미래)사용할 CPU시간
+        - 0<=a<=1의 가중치 파라미터 a
+    - 근데 CPU사용 시간을 일일히 기록해놓기에 제약이 많아서,
+- SJF는 이론적으로 optimal하지, 현실에서 사용하는 알고리즘은 아니다
+- preemptive 할수도, non-preemptive할 수도 있다.  
+- SRTF 스케줄링 : Shortest Remaining Time First: 남아있는 시간이 더 짧은 것을 preemptive하게 선점시키겠다!
+    - 이 SRTF는 __새로운 프로세스의 CPU burst < 현재 프로세스의 remaining time__  이면 runing중인 아이를 쫓아내고 새로운 프로세스를 선점시킴.
+<img width="459" alt="image" src="https://user-images.githubusercontent.com/79896709/171584822-ab3834d7-2807-43a7-b69e-a596d3c17062.png">
+
+
+__RR 스케줄링__  
+: time quantum만큼 시분할한 preemptive FCFS  
+: 특정 time quantum 지나면 프로세스 쫓아냄. 이 time quantum은 10~100밀리초 수준.  
+: 계속 돌고 돌며 실행되기에, ready queue는 원형 queue이다.  
+
+<img width="452" alt="image" src="https://user-images.githubusercontent.com/79896709/171584951-8424d61f-e5b1-4f68-be86-2a321c285292.png">
+
+
+- 프로세스가 time quantum보다 짧다면, 
+    - 프로세스가 스스로 CPU에서 빠져나오고, 스케줄러는 레디 큐의 다음 프로세스로 이동한다
+- 반대로 프로세스의 CPU burst가 time quantum보다 길다면,
+    1. 타이머는 OS에 interrupt를 걸고
+    2. context switch가 일어난 이후
+    3. 기존 프로세스는 ready queue의 맨 끝에 들어간다.
+
+- RR 스케줄링은 결국 Time quantum을 얼마나 주느냐에 따라서 성능이 크게 달라진다
+    - quantum을 너무 작게 주면 context switch(dispatch latency수반)가 많아짐
+    - 그렇다고 quantum을 너무 많이주면 그냥 FCFS와 다를 바 없어짐.
+
+__우선순위 기반 스케줄링__ 
+
+<img width="452" alt="image" src="https://user-images.githubusercontent.com/79896709/171585117-82a3a3e8-98cb-4bac-8c72-d51cc3192f24.png">
+
+- SJF는 다음 CPU burst의 역으로 우선순위를 결정한, 우선순위 기반 스케줄링의 예시
+- preemptive(SRTF) VS Non-preemptive(SJF)
+    - 이때, starvation 문제 발생(영원히 블록돼있음)
+        - 레디큐에있는 우선순위 낮은 프로세스는, 계속 선 우선순위 프로세스가 들어와서 수행 못하고 계속 대기만 하고 있을 수 있다.
+    - 이를 해결하기 위하여, aging을 한다.
+        - 프로세스의 대기 시간이 길어지면, 우선순위를 높여준다.
+
+RR과 우선순위 스케줄링을 합친 예시.
+- 우선순위 프로세스를 수행하되, 같은 경우에는 round robing 사용
+<img width="460" alt="image" src="https://user-images.githubusercontent.com/79896709/171585167-edaf9a66-19e3-4af1-96da-f55c6b97fe51.png">
+
+__MLQ(Multi Level Queue)스케줄링__ 
+priority에 따라 ready queue를 따로 주는 방법.
+<img width="372" alt="image" src="https://user-images.githubusercontent.com/79896709/171582690-80c165b0-6e2b-48bd-a015-e68adef9d2b3.png">
+
+__MLFQ(Multi Level Feedback Queue)스케줄링__
+상위 priority queue가 계속 CPU를 독점하는 문제가 생길 수 있기때문에, CPU burst를 quantum으로 할당한 이후, 이를 점점 늘려감.  
+CPU bound 프로세스는 뒤로 갈수록 많은 시간을 할당받고, IO bound 프로세스는 빨리빨리 처리할 수 있다.
+<img width="571" alt="image" src="https://user-images.githubusercontent.com/79896709/171583198-00a3a6d8-4fee-41d1-8cd8-1aeb2c493fa5.png">
+
+- 사실은, 현대 컴퓨터에서는 프로세스 스케줄링을 할 일은 별로 없고, (커널)쓰레드 스케줄링을 한다.(위의 방법들을 가지고)
+- 유저 쓰레드는 쓰레드 라이브러리가 관리하기 때문에, 커널은 유저쓰레드에 대해 알지 못함.
+- 그냥 커널 쓰레드와 유저 쓰레드를 map해주기만 하면 됨.  
+=> __OS kernel은 CPU스케줄링을 Kernel Thread에 적용한다.__   
+
+__Real time OS__ 의 스케줄링 문제
+: 실시간 means 주어진 시간 내에 task를 완료하는 것 
+
+    - Soft realtime
+: critical 한 실시간 프로세스가, 반드시 그 시간안에 끝내지는 않지만, non-critical보다는 반드시 빨리 수행되는 것을 보장함.(휴대전화)
+
+    - Hard realtime
+: task는 반드시 데드라인 안에 끝나야한다.(우주선)
 
