@@ -1041,3 +1041,171 @@ __Real time OS__ 의 스케줄링 문제
     - Hard realtime
 : task는 반드시 데드라인 안에 끝나야한다.(우주선)
 
+# Synchronization Tools
+Cooperating 프로세스란?
+- 서로에게 영향을 주고받는 프로세스들
+- 쓰레드 같은 logical address space 를 공유하고 데이터를 공유(shared memeory, message passing)
+
+Coopertating process들이
+- shared data에 cuncurrent 하게 access할때는, __data inconsistency__ 가 발생할 수 있다.  
+
+따라서, cooperating process간의 순서 있는 실행을 보장해야만 data consistency를 보장할 수 있다.
+
+inconsistency1 link
+
+<img width="459" alt="image" src="https://user-images.githubusercontent.com/79896709/171819117-5cd2d23c-76a9-4484-a823-bcfec083405c.png">
+
+inconsistency2 link
+
+> 왜 이렇게 되는가 ??
+count++와 count-- 는 하나의 문장으로 보이지만,
+```
+register1 = count
+register1 = register1 + 1
+count = register1
+```
+```
+register2 = count
+register2 = register2 - 1
+count = register2
+```
+이렇게 instruction들이 나뉘어있다,
+문제는, 저 문장들 중 어디서 context switch가 일어날지 알 수 없다는 것.  
+
+<img width="423" alt="image" src="https://user-images.githubusercontent.com/79896709/171819197-1e4dbbc3-de4e-47c8-8d55-ad27c212d5a1.png">
+
+
+- register1과 register2 가 같은 physical register지만, 이 레지스터들의 값은 interrupt handler에 의하여 save되고 restore되기 때문에, 임의적인 순서로 interleaved돼 데이터에 inconsistency 발생함.
+
+- __Race condition(경쟁상황)__  
+: 두개 이상의 프로세스나 쓰레드가, 어떤 데이터를 공유하고 있을때, 이를 concurrent하게 다루려고하면, 그 실행의 결과는 __어떤 순서에 따라 access가 일어나냐(무슨 instruction부터 실행되냐)__ 에 따라 달라진다.  
+
+- Race condition을 해결할 수 있는 방법
+    - 특정시간에 오직 하나의 프로세스만 shared data를 다룰 수 있게 해야함.
+    - 이를 위해서는 __sychronization__ 이 필요하다.  
+    => 경쟁상황을 막기 위하여 data access가 순차적으로 실행될 수 있게 하는 것
+
+-> __Java__ 에서의 Race condition발생 예시  
+Race Condition1 파일
+Race Condition2 파일
+
+## Critical Section Problem(임계영역)
+n개의 프로세스가 있을때, 각 프로세스는 critical section이라 불리는 코드영역을 가지고 있다.    
+
+:특정 section에서 shared data를 access하고 update할때, 이것이 다른 프로세스와 공유가 되면 critical section 인것  
+
+- 하나의 프로세스가 critical section을 실행하고 있을때에는, __다른 프로세스들은 critical section에 진입할 수 없게 만들면 race condition이 발생하지 않는다__  
+
+- 코드의 section들
+    - entry section : critical section에 진입하는 코드 영역
+        - critical section에 진입하기 위한 허가를 얻는다
+    - critical section
+    - exit section : critical section을 나간다(허가 반납)
+    - remainder section : 남아있는 code들의 공간  
+
+<img width="399" alt="image" src="https://user-images.githubusercontent.com/79896709/171806073-47ef7208-28e1-42d1-8fa1-8a34c64966d6.png">
+
+- Critical Section 문제를 해결할때의 요구사항
+1. Mutual exclusion(상호배제)  
+p1이 실행중일때, 나머지 프로세스들은 CS에 진입할 수 없다 
+
+2. Progress(avoid __deadlock__)  
+어떤 프로세스도 critical section에 없을때, 진입하고자 하는 프로세스가 있지만, 아무도 critical section에 진입할 수 없는 상황이 deadlock.  
+
+3. Bounded Watiting(avoid starvation)
+대기하고 있는 프로세스들 중, 계속 CS에 진입하지 못하고 있는 프로세스가 없도록 해야한다.  
+이를 위해 대기시간을 한정하는 것.
+
+- 운영체제 커널영역에서 Race condition이 발생하는 경우
+
+<img width="676" alt="image" src="https://user-images.githubusercontent.com/79896709/171807180-697d3d32-d452-47a0-bd60-3c2a487b697c.png">
+
+P0와 P1의 child의 pid가 같아져서 프로세스 충돌이 일어난다!
+
+
+- Single core에서 Critical Section 문제를 해결하는 방법  
+
+가장 단순하게 interrupt가 발생하지 않도록 한다.  
+
+위의 count++의 경우를 예로 들자면, load - add - store가 동작하는 동안에는 interrupt를 막아버리면 된다.  
+그러나 이 방법은 현재 instruction sequence를 반드시 보장해줘야 하기때문에, 멀티프로세스 환경에서 구현하기 매우 어려움.  
+-> core가 여러개 있을때에, 모든 코어들의 interrupt를 다 막아줘야 하기때문에, 효율이 떨어진다.  
+
+- 선점형과 비선점 커널에서의 차이
+1. Non preemptive kernel  
+어떤 프로세스가 kernel모드에 진입하고 난 이후에는, 프로세스가 자발적으로 CPU를 내놓을때까지는 계속 사용할 수 있으니, race condition이 발생할 일이 없다.  
+-> 성능 문제로 현대에서는 비선점형 커널은 사용하지 않는다
+2. Preepmptive kernel 
+프로세스가 언제든지 선점될 수 있기에 동기화 문제가 발생하지만, 더 빠르기 때문에 이를 주로 사용한다. 
+
+
+## Peterson's Solution
+임계영역 문제를 가장 잘 해결한 알고리즘
+- 문제의 범위를 두개의 프로세스로 한정함.
+- 두개의 프로세스가 critical section과 remainder section을 오가는 상황  
+
+
+```C
+while (true) {
+    flag[i] = true; // i: 내가 사용할거야!
+    turn = j;  // i: 다음 차례는 j야!
+    while (flag[j] && turn == j)
+        ; // j차례에 j가 사용 중일동안 무한 대기
+
+        /* critical section */
+    
+    // j가 나간 이후, i가 들어가서 할일을 다 마침
+    flag[i] = false; // i가 자기 할일을 다 한 이후 빠져나옴
+
+        /* remainder section */
+}
+```
+Peterson.c 파일
+
+문제는, 파일을 실행해보면 알겠지만, sum값이 0으로 매번 나오지 않음.  
+__기계어 레벨__ 에서 구조를 짜지 않으면, peterson solution이 제대로 동작할거란 __보증은 없다__.
+``` 
+    flag[i] = true; 
+    turn = j;  
+    while (flag[j] && turn == j)
+        ;
+```
+이 과정에서 context switch가 일어나면, entry section에서 permission을 얻는 과정이 꼬이면 peterson solution이 동작하지 않는 것.
+
+어쨌거나, peterson solution은 알고리즘 적 측면에서 CSP를 이해하는 데 도움을 준다.  
+
+=> Mutual exclusion,progress, bounded waiting의 이론적 증명이 가능하다
+1. Mutual exclusion
+Pi가 CS에 들어갈때는 반드시 flag[j] == false or turn == i
+2. 데드락이 안걸리기에 progress도 만족
+3. bounded waiting 조건도 만족하여 기아문제도 생기지 않는다.
+
+
+## Hardware-based solution
+Peterson solution에서 보았듯, instruction 레벨에서 문제를 해결하려 하다보니 한계가 있다.  
+하드웨어 instruction 자체를 CSP를 푸는데 지원하는 방법.  
+
+- Atomicity(원자성)  
+atomic operation이라 함은, 더이상 쪼갤 수 없는(interrupt를 걸 수 없는) operation의 단위.
+    - atomic한 hardware instruction을 만들어서, CS문제에 적용한다.
+    - atomic instruction의 두가지 타입
+        1. test_and_set()
+        <img width="535" alt="image" src="https://user-images.githubusercontent.com/79896709/171818256-7ec48ee0-a870-4fa0-8588-6692af1c8161.png">
+
+
+            이는 하나의 쪼개지지 않는 instruction 
+
+            <img width="438" alt="image" src="https://user-images.githubusercontent.com/79896709/171817842-5db91f43-ad43-4631-a68f-012711434c12.png">
+        
+            while (test_and_set(&lock)) 에서는 절대 context switch가 일어나지 않으니, mutual exclusion은 확실히 보장이 된다.
+
+        2. compare_and_swap()
+        <img width="867" alt="image" src="https://user-images.githubusercontent.com/79896709/171818412-42e4b2c9-a34b-4b2a-af9d-8a7437d6e8ad.png">
+
+            : 두개의 value를 가지고, 두 value를 스왑해줌
+        
+
+            <img width="460" alt="image" src="https://user-images.githubusercontent.com/79896709/171818673-5d7ff7b6-468e-4397-8253-0c77ff412412.png">
+
+            0과 1을 변환(토글)하는 과정이 atmoic
+
