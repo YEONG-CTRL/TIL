@@ -2,6 +2,8 @@
 - [운영체제란? & O/S Structure](#운영체제란-무엇인가?)
 - [Process](#process)
 - [Thread](#thread와-concurrency)
+- [Cpu Scheduling](#CPU-Scheduling)
+- [Synchronization Tools](#Synchronization-Tools)
 
 <br></br>    
 
@@ -1051,11 +1053,11 @@ Coopertating process들이
 
 따라서, cooperating process간의 순서 있는 실행을 보장해야만 data consistency를 보장할 수 있다.
 
-inconsistency1 link
+[inconsistency1](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/inconsistency1.c)
 
 <img width="459" alt="image" src="https://user-images.githubusercontent.com/79896709/171819117-5cd2d23c-76a9-4484-a823-bcfec083405c.png">
 
-inconsistency2 link
+[inconsistency2](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/inconsistency2.c)
 
 > 왜 이렇게 되는가 ??
 count++와 count-- 는 하나의 문장으로 보이지만,
@@ -1086,8 +1088,8 @@ count = register2
     => 경쟁상황을 막기 위하여 data access가 순차적으로 실행될 수 있게 하는 것
 
 -> __Java__ 에서의 Race condition발생 예시  
-Race Condition1 파일
-Race Condition2 파일
+[Race Condition1](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/RaceCondition1.java)  
+[Race Condition2](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/RaceCondition2.java)
 
 ## Critical Section Problem(임계영역)
 n개의 프로세스가 있을때, 각 프로세스는 critical section이라 불리는 코드영역을 가지고 있다.    
@@ -1160,7 +1162,7 @@ while (true) {
         /* remainder section */
 }
 ```
-Peterson.c 파일
+[Peterson](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/Peterson.c)
 
 문제는, 파일을 실행해보면 알겠지만, sum값이 0으로 매번 나오지 않음.  
 __기계어 레벨__ 에서 구조를 짜지 않으면, peterson solution이 제대로 동작할거란 __보증은 없다__.
