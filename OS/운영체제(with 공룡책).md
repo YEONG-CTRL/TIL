@@ -1211,3 +1211,8 @@ atomic operation이라 함은, 더이상 쪼갤 수 없는(interrupt를 걸 수 
 
             0과 1을 변환(토글)하는 과정이 atmoic
 
+- Atomic Variable  
+: compare_and_swap() instruction을 atomic variable을 만드는 도구로 사용할 수 있다.   
+이 Atomic Variable은 single variable에 대한 race condition이 발생했을때, mutual exclusion을 보장하는 atomic operation을 만든다.  
+
+자바 예시 Peterson2
