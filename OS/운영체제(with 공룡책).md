@@ -1216,3 +1216,73 @@ atomic operation이라 함은, 더이상 쪼갤 수 없는(interrupt를 걸 수 
 이 Atomic Variable은 single variable에 대한 race condition이 발생했을때, mutual exclusion을 보장하는 atomic operation을 만든다.  
 
 [Peterson2(Java)](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/Peterson2.java)
+
+
+## Mutex Lock
+두개의 프로세스만 제어 가능  
+lock = 열쇠, Critical section에 들어갈때 열쇠를 가져갔다가(acquire), 나올때에 이 열쇠를 다시 반납(release)  
+<img width="333" alt="image" src="https://user-images.githubusercontent.com/79896709/172081085-992a12be-27a4-4c60-8b33-0138c684af5d.png">
+
+- available: Boolean변수, true면 lock이 있고, false면 lock이 없다.
+
+<img width="856" alt="image" src="https://user-images.githubusercontent.com/79896709/172081255-91899be4-7290-42c8-820d-0dc9bb334e4b.png">
+
+- acquire()과 release() 과정은 atomic하게 수행돼야 한다.
+
+__Busy waiting__ 문제 발생  
+: 어떤 프로세스든 Critical section에 들어가기 위하여 무한히 loop를 돌게된다.
+- single cpu인 경우, acquire하는 프로세스가 cpu를 계속 소모하고 있게 된다.
+- busy waiting을 하며 기다리고 있는 mutex lock을 __Spinlock__ 이라고 부른다.
+- 프로세스가 lock이 available하게 될때까지 계속 spin(돌기)때문.
+    - spinlock의 장점: cpu코어가 여러개인 경우에는, cpu 하나를 선점해서 공회전을 돌다가, lock이 풀리면 바로 진입할 수 있음.
+    - 따라서, context switch에 걸리는 시간을 줄일 수 있다.
+    - 이처럼, multicore system에서는 spinlock이 선호될 때가 있다.
+
+뮤텍스 락 예시파일
+
+
+## Semaphore(신호기)
+n개의 프로세스를 제어 가능  
+Semaphore S 는 integer 변수  
+- wait() , signal() 두개의 atomic operation으로만 접근 가능
+
+<img width="703" alt="image" src="https://user-images.githubusercontent.com/79896709/172082816-463267ae-d030-4da2-9dcc-3d2d8ac80735.png">
+
+s=n으로 초기화 한 이후, s를 감소시키다가 s가 0이되면 더이상 진입하지 못하게 한다. 
+
+- Binary Semaphore
+만약에 n=1이면?: 0과 1의 범위만 갖게됨 = mutex lock과 비슷해짐
+- Counting Semaphore
+n > 1 인 경우. 여러개의 인스턴스를 가진 자원에 사용할 수 있다.
+    - S를 available 한 resource 개수로 초기화해준다.
+    - 프로세스가 리소스를 사용할때에는 wait()를 주고, count를 하나 줄여준다.(열쇠함에서 하나 빼감)
+    - 프로세스가 리소스를 다 썼을 경우 release. 이 release는 signal()함수로 처리. 그리고 count 늘려줌(열쇠함에 하나 반납)
+    - count가 0인 경우(열쇠가 없는 상태) 에서는, 리소스를 쓰고 싶은 프로세스는 블록된 상태이다(count가 0보다 커질때까지)
+
+- semaphore로 synchronization problem을 해결
+<img width="603" alt="image" src="https://user-images.githubusercontent.com/79896709/172083533-436bc87e-11d7-4e5f-90b7-1860f6d276aa.png">
+
+S1이 실행되고 난 후 S2가 실행되게 하려면, P1과 P2는 synchronized 필요.  
+따라서 세마포어 synch를 0으로 초기화한다.  
+
+- Semaphore 구현
+: mutex와 마찬가지로, busy waiting 문제가 발생한다. wait()과 singal의 정의를 수정하여 이를 해결할 수 있다.  
+
+프로세스가 wait()를 실행할때  
+
+    - semaphore가 positive하지 않아서 wait()를 해야한다면,
+    - busy waiting 하지말고, 스스로 정지한 이후 wait queue로 들어간다.
+    - 만약 다른 프로세스가 singal()을 호출한다면, wait queue에 있던 프로세스는 재시작하여서 ready queue로 이동한다.
+
+바이너리 세마포어 파일 .c
+
+카운팅 세마포어 파일.c
+
+예상했던 결과 50000이 나오지 않는다. 왜?  
+5개의 쓰레드가, 5개의 열쇠를 가지고 critical section에 진입하면, 기존에 그래왔던 것처럼 race condition이 일어남(mutual exclusion 안됨)  
+
+- 세마포어의 전제는, n개의 인스턴스가 있다는 것이었음. 근데 위에서처럼, sum이라는 shared variable 하나를 가지고 5개의 쓰레드가 동시에 접근하면, 당연히 race condition이 되는 것.  
+
+
+## Monitor
+뮤텍스와 세마포어의 문제를 해결
