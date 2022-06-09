@@ -1238,7 +1238,7 @@ __Busy waiting__ 문제 발생
     - 따라서, context switch에 걸리는 시간을 줄일 수 있다.
     - 이처럼, multicore system에서는 spinlock이 선호될 때가 있다.
 
-뮤텍스 락 예시파일
+[뮤텍스 락.c](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/Mutexlock.c)
 
 
 ## Semaphore(신호기)
@@ -1274,9 +1274,9 @@ S1이 실행되고 난 후 S2가 실행되게 하려면, P1과 P2는 synchronize
     - busy waiting 하지말고, 스스로 정지한 이후 wait queue로 들어간다.
     - 만약 다른 프로세스가 singal()을 호출한다면, wait queue에 있던 프로세스는 재시작하여서 ready queue로 이동한다.
 
-바이너리 세마포어 파일 .c
+[바이너리 세마포어.c](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/Semaphore1.c)
 
-카운팅 세마포어 파일.c
+[카운팅 세마포어.c](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/RaceCondition2.java)
 
 예상했던 결과 50000이 나오지 않는다. 왜?  
 5개의 쓰레드가, 5개의 열쇠를 가지고 critical section에 진입하면, 기존에 그래왔던 것처럼 race condition이 일어남(mutual exclusion 안됨)  
@@ -1285,4 +1285,49 @@ S1이 실행되고 난 후 S2가 실행되게 하려면, P1과 P2는 synchronize
 
 
 ## Monitor
-뮤텍스와 세마포어의 문제를 해결
+세마포어의 문제점:  
+모든 프로세스가 binary 세마포어를 1로 초기화해놓고 사용할 시, 만약에 wait - CS입장 - signal의 순서를 지키지 않는다면, 두 프로세스가 동시에 Critical Section에 들어가게 될 것임.  
+-> 단 하나의 프로세스라도 wait - signal의 순서가 깨진다면 배타성이 깨진다.  
+
+따라서 아주 간단한 Synchronization Tool인 __Monitor__ 가 등장함
+: mutual exclusion을 제공해주는 데이터 타입(클래스라고 보면 됨)
+
+ <img width="590" alt="image" src="https://user-images.githubusercontent.com/79896709/172822731-9ef5a178-e0de-4475-953f-22f7b0b8cf5e.png">
+  
+모니터는 __condition__ 을 도입하여 synchronization을 적용한다.  
+
+<img width="251" alt="image" src="https://user-images.githubusercontent.com/79896709/172823207-618cc200-099f-4e67-8bea-fa9cbff8abe4.png">  
+
+Condition variable에 wait()와 signal()을 걸어준다.
+
+<img width="682" alt="image" src="https://user-images.githubusercontent.com/79896709/172823501-6db88caf-f2b5-4a9f-93d5-ccf53cc8d6fb.png">
+  
+### Java Monitor
+자바에서는 쓰레드 동기화를 위한 concurrency 메커니즘으로 Monitor lock 혹은 intrinsic lock을 사용한다.  
+- synchronized
+    - 임계영역에 해당하는 코드 블록을 선언할 때 사용하는 자바 키워드 
+    - 해당 임계영역에는 모니터락을 획득해야만 진입이 가능하다.
+    - 모니터 락을 가진 객체 인스턴스를 지정할 수 있음
+    - 메소드에 선언하면 메소드 코드 전체가 임계영역으로 지정이 된다.  
+         이때 모니터락을 가진 인스턴스는 this 객체 인스턴스이다
+
+- wait() & notify()
+    - java.lang.object에 선언되어, 모든 자바 객체가 가지고 있는 메소드이다.
+    - 쓰레드가 어떤 객체의 wait()메소드를 호출하면, 해당 객체의 모니터락을 획득하기 위해 대기 상태로 진입한다.  
+    - 쓰레드가 어떤 객체의 notify()메소드를 호출하면, 해당 객체 모니터에 대기중인 쓰레드 하나를 깨운다.  
+        - notifyAll() 메소드를 호출하면, 해당 객체 모니터에 대기중인 쓰레드 전부를 깨운다.
+
+자바 예제 파일
+
+
+__Liveness__   
+progress와 bounded waiting 모두를 해결하기 위해 시스템이 만족해야 할 특성들.  
+: deadlock 과 priority inversion 상황에서 Liveness는 실패한다.  
+- deadlock : 두개 이상의 프로세스가 waiting큐에 있는 프로세스만 일으킬 수 있는 사건을 무한히 기다리고 있는 상황.  
+
+    <img width="360" alt="image" src="https://user-images.githubusercontent.com/79896709/172833256-0c16120e-ecc2-4f8e-8cc2-86f4243c012c.png">
+
+- 우선순위 역전: 높은 우선순위를 가진 프로세스가, 낮은 우선순위를 가진 프로세스에게 밀리는 현상.
+    - priority inheritance 프로토콜로 이 문제를 피할 수 있다.
+
+
