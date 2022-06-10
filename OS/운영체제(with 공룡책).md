@@ -1276,7 +1276,7 @@ S1이 실행되고 난 후 S2가 실행되게 하려면, P1과 P2는 synchronize
 
 [바이너리 세마포어.c](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/Semaphore1.c)
 
-[카운팅 세마포어.c](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/RaceCondition2.java)
+[카운팅 세마포어.c](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/Semaphore2.c)
 
 예상했던 결과 50000이 나오지 않는다. 왜?  
 5개의 쓰레드가, 5개의 열쇠를 가지고 critical section에 진입하면, 기존에 그래왔던 것처럼 race condition이 일어남(mutual exclusion 안됨)  
@@ -1317,7 +1317,10 @@ Condition variable에 wait()와 signal()을 걸어준다.
     - 쓰레드가 어떤 객체의 notify()메소드를 호출하면, 해당 객체 모니터에 대기중인 쓰레드 하나를 깨운다.  
         - notifyAll() 메소드를 호출하면, 해당 객체 모니터에 대기중인 쓰레드 전부를 깨운다.
 
-자바 예제 파일
+[자바 예제1](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/SynchExample2.java)
+[자바 예제2](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/SynchExample3.java)
+[자바 예제1](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/SynchExample4.java)
+[자바 예제1](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/SynchExample5.java)
 
 
 __Liveness__   
@@ -1329,5 +1332,59 @@ progress와 bounded waiting 모두를 해결하기 위해 시스템이 만족해
 
 - 우선순위 역전: 높은 우선순위를 가진 프로세스가, 낮은 우선순위를 가진 프로세스에게 밀리는 현상.
     - priority inheritance 프로토콜로 이 문제를 피할 수 있다.
+
+
+# Synchronization Examples
+대규모의 Concurrency-Control문제들:
+- Bounded-buffer problem(Producer-consumer problem)
+- Readers-Writers problem
+- Dining-Philosophers problem
+
+## Bounded-buffer
+Pool에 n개의 버퍼가 있다, 이 버퍼는 각각 하나의 아이템을 들고 있을 수 있다.
+<img width="358" alt="image" src="https://user-images.githubusercontent.com/79896709/173006544-d41bb509-98e9-45de-be01-bcb165d63491.png">
+
+- producer는 버퍼를 가득 채우는 것이 목표, consumer는 이 buffer를 빨리 비워주는 것이 목표.  
+- Binary 세마포어 mutex는 buffer pool에 대한 mutual exclusion을 제공(1로 초기화)
+- Counting 세마포어 empty와 full은 empty와 full buffer를 카운팅하기 위해 사용하기 때문에, empty는 value n으로 초기화하여 감소되고, full은 0으로 초기화하여 증가된다.
+
+pthread를 이용한 솔루션.c
+java 솔루션.java 
+
+## Readers-Writers
+대부분의 동기화는 버퍼등의 shared data에 read/write하는 n개의 프로세스의 race condition을 가정하는 반면, reader-writers problem은 어떤 프로세스들은 읽기만 하고/ 어떤 프로세스는 읽고, 쓰고를 둘 다 한다고 가정.  
+
+- 만약 __두개 이상의 reader__ 가 동시에 shared data에 접근한다고 해도 별 문제가 생기지 않는다.(읽기만 하니깐 data inconsistency에 문제 x)  
+- __여러 writer__ 가 동시에 shared data에 접근하면, __data inconsistency가 깨짐.__ 
+
+- fisrt readers writers problem
+    - writer가 waiting하고 있다고 해서 reader가 다른 reader가 끝내기를 기다릴 수 없다. 
+        -> reader와 writer는 공평한 기회를 얻는다.
+
+    - 해결책
+    ```C
+    semaphore rw_mutex = 1;  // 얘는 reader와 writer에서 공유해서 사용
+    semaphore mutex = 1; // Critical section보호를 위해 사용 : read_count가 증가될때 mutual exclusion 보장
+    int read_count = 0; // 리더의 개수
+    ```  
+
+    <img width="1105" alt="image" src="https://user-images.githubusercontent.com/79896709/173010258-9ccc0bc7-f5bd-47ee-bbb6-608154728103.png">
+
+    - writer는 그냥 rw_mutex획득하면 들어가고, 나올때 signal주면 됨
+    - reader의 경우, wait(mutex)~ singal(mutex)사이가 Critical section, read_count가 0이되면 reader가 signal(rw_mutex)로 writer를 깨운다.
+    - 한 writer가 CS에 들어갔을때, 기다리고 있는 n개의 리더들 중
+        - 하나의 reader는 rw_mutex큐에서 대기중이고,
+        - 나머지들은 mutex큐에서 대기중
+        - writer가 singal(rw_mutex)시, waiting readers혹은 single waiting writer의 작업을 재개하는데, 이때 고르는 권한은 scheduler에게 있다. 
+
+    - __Reader_writer Lock__   
+    해결하는 API가 존재한다.  
+        - read-writing lock 획득 시 여러개가 진입
+        - writing lock획득 시 하나만 진입
+        - writer에 대해서 mutual exclusion이 보장된다.
+
+- second reader writers problem
+    - 만약 writer가 access하기 위해 기다리고 있을때, 새로운 reader가 진입할 수 없다.
+- 두가지 모두 경우 starvation이 일어날 수 있다(writer가 계속 기다리거나, reader가 계속 기다리거나)
 
 
