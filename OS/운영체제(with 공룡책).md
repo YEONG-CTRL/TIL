@@ -1317,10 +1317,14 @@ Condition variable에 wait()와 signal()을 걸어준다.
     - 쓰레드가 어떤 객체의 notify()메소드를 호출하면, 해당 객체 모니터에 대기중인 쓰레드 하나를 깨운다.  
         - notifyAll() 메소드를 호출하면, 해당 객체 모니터에 대기중인 쓰레드 전부를 깨운다.
 
-[자바 예제1](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/SynchExample2.java)
-[자바 예제2](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/SynchExample3.java)
-[자바 예제1](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/SynchExample4.java)
-[자바 예제1](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/SynchExample5.java)
+[자바 예제1](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/SynchExample2.java)  
+
+[자바 예제2](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/SynchExample3.java)  
+
+[자바 예제3](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/SynchExample4.java)  
+
+[자바 예제4](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter6/SynchExample5.java)  
+
 
 
 __Liveness__   
@@ -1341,15 +1345,17 @@ progress와 bounded waiting 모두를 해결하기 위해 시스템이 만족해
 - Dining-Philosophers problem
 
 ## Bounded-buffer
-Pool에 n개의 버퍼가 있다, 이 버퍼는 각각 하나의 아이템을 들고 있을 수 있다.
-<img width="358" alt="image" src="https://user-images.githubusercontent.com/79896709/173006544-d41bb509-98e9-45de-be01-bcb165d63491.png">
+Pool에 n개의 버퍼가 있다, 이 버퍼는 각각 하나의 아이템을 들고 있을 수 있다.  
+
+<img width="358" alt="image" src="https://user-images.githubusercontent.com/79896709/173006544-d41bb509-98e9-45de-be01-bcb165d63491.png">  
+
 
 - producer는 버퍼를 가득 채우는 것이 목표, consumer는 이 buffer를 빨리 비워주는 것이 목표.  
 - Binary 세마포어 mutex는 buffer pool에 대한 mutual exclusion을 제공(1로 초기화)
 - Counting 세마포어 empty와 full은 empty와 full buffer를 카운팅하기 위해 사용하기 때문에, empty는 value n으로 초기화하여 감소되고, full은 0으로 초기화하여 증가된다.
 
-pthread를 이용한 솔루션.c
-java 솔루션.java 
+[pthread를 이용한 솔루션.c](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter7/Boundebuffer-pthread.c)
+[java 솔루션.java](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter7/BoundedBuffer.java)
 
 ## Readers-Writers
 대부분의 동기화는 버퍼등의 shared data에 read/write하는 n개의 프로세스의 race condition을 가정하는 반면, reader-writers problem은 어떤 프로세스들은 읽기만 하고/ 어떤 프로세스는 읽고, 쓰고를 둘 다 한다고 가정.  
@@ -1388,3 +1394,43 @@ java 솔루션.java
 - 두가지 모두 경우 starvation이 일어날 수 있다(writer가 계속 기다리거나, reader가 계속 기다리거나)
 
 
+## Dining Philosophers Problem  
+5명의 철학자들은 5개의 젓가락만 갖고 있다.  
+이들은 밥을 먹기 위해 2개의 젓가락이 필요하다.  
+<img width="392" alt="image" src="https://user-images.githubusercontent.com/79896709/173179671-c49b753c-336c-4c35-8b1a-64406479deab.png">
+
+각 젓가락은 Critical Section, 이를 동시에 잡으려 할 시 race condition이 발생한다. -> 젓가락을 잡는 행위에 __mutual exclusion__ 을 적용해야 동시에 잡는 일이 생기지 않는다.  
+- 여러개의 젓가락(resource)를 여러개의 프로세스(철학자)에게 할당해야 한다.  
+- 이때 deadlock과 starvation에서 자유로워야 한다.  
+
+- 가장 간단한 해결책은, 각 젓가락에 binary semaphore를 하나씩 걸어주면 된다.
+    - 젓가락을 집을때 wait(), 젓가락을 내려놓을 때 signal()
+    - 그러나 이 경우 deadlock이 발생한다
+    : 다섯명 철학자 모두 배가 고파져서 하나씩 젓가락을 잡고 있다면, 아무도 국수를 먹을 수 없어서 __deadlock__ 에 빠진다.
+        - deadlock을 해결하기 위해
+        1.  철학자의 숫자를 네명으로 제한한다.
+        2. 혹은 양쪽 젓가락이 가능할때에만 젓가락을 잡도록 한다.
+        3. asymmetric solution :  
+            홀수인 철학자들은 먼저 왼쪽을 집고 -> 오른쪽을 집는다
+            짝수 철학자들은 오른쪽 집고 -> 왼쪽을 집자  
+            이때 겹치는 중간 부분은 critical section으로 상호배제가 보장된다.
+       - 이러한 deadlock-free 솔루션들도 __starvation__ 까지는 해결하지 못한다.
+
+- __Monitor solution__ 도입:  양쪽의 젓가락이 가능할때에만 집어들도록 모니터를 통해 구현. pickUp() -> eat -> putDown()
+    - 상태를 생각, 배고픈, 밥먹는 세가지의 상태로 나눈다.
+    - 배고픈 상태에서 젓가락을 잡을 수 있으면, 밥먹고 , 아니면 waiting으로 넘어간다.  
+    - 각 철학자는 자신 양쪽의 철학자가 eating 상태가 아닐때에 eating으로 넘어갈 수 있다. 
+    - condition variable을 선언해줘야 한다.
+        - 철학자가 배고플때 스스로를 delay할 수 있게하고
+        - 밥을 먹고나면 signal을 준다.
+    - Monitor를 도입하여도 starvation을 막을 수는 없다.
+
+    Java 솔루션 
+
+- Thread-safe concurrent Application:  
+
+    concurrent application은 퍼포먼스가 굉장히 좋은 반면, race condition과, 데드락등의 위험도를 높인다  
+    따라서 이에 대한 대안으로 __thread safe concurrent application__ 이 등장하였다.  
+    1. Transactional memory 로 읽기와 쓰기 연산을 atomic 연산으로 만든다.
+    2. OpenMP : #paragma omp critical 컴파일러 디렉티브로 임계구역을 지정한다.
+    3. 함수형 프로그래밍 언어(명령형 프로그래밍 - instruction에 의존적인 - 의 대안) : 명령형 프로그래밍 언어와 달리 상태를 유지하지 않으므로 경쟁조건이나 교착상태가 발생하지 않는다. 
