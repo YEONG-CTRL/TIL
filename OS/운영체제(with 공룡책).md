@@ -1425,7 +1425,7 @@ Pool에 n개의 버퍼가 있다, 이 버퍼는 각각 하나의 아이템을 �
         - 밥을 먹고나면 signal을 준다.
     - Monitor를 도입하여도 starvation을 막을 수는 없다.
 
-    Java 솔루션 
+    [Java 솔루션](https://github.com/YEONG-CTRL/TIL/blob/main/OS/chapter7/DiningPhilosophers.java)
 
 - Thread-safe concurrent Application:  
 
@@ -1434,3 +1434,95 @@ Pool에 n개의 버퍼가 있다, 이 버퍼는 각각 하나의 아이템을 �
     1. Transactional memory 로 읽기와 쓰기 연산을 atomic 연산으로 만든다.
     2. OpenMP : #paragma omp critical 컴파일러 디렉티브로 임계구역을 지정한다.
     3. 함수형 프로그래밍 언어(명령형 프로그래밍 - instruction에 의존적인 - 의 대안) : 명령형 프로그래밍 언어와 달리 상태를 유지하지 않으므로 경쟁조건이나 교착상태가 발생하지 않는다. 
+
+# 데드락의 이해
+> 데드락이란, 프로세스 집합안의 모든 프로세스들이 집합의 다른 프로세스에 의해 일어나는 사건을 기다리고 있는 상황.
+
+다시 말해, __waiting 쓰레드나 프로세스가 다시는 자신의 상태를 바꿀 수 없는__ 상황, 왜냐하면 해당 쓰레드(프로세스)가 요청한 리소스가 __다른 waiting하는 쓰레드(프로세스)에 의해 점유__ 돼 있기 때문에.
+
+- 리소스 타입은 __몇개의 동일한 인스턴스__ 로 구성돼 있다.
+    - CPU를 예시로 들면, 코어가 4개 있으면, 코어를 요청하는 쓰레드들에게 네개까지는 동시에 줄 수 있다. T5부터는 대기해야 한다.
+- 쓰레드가 리소스 타입을 요청했을 시, 어떤 인스턴스를 할당해줘도 만족한다. 그 안의 인스턴스 개수가 중요할뿐.
+- 쓰레드는 request -> use(critical section) -> release 순으로 리소스를 사용
+
+데드락의 4 necessary conditions  
+1. __상호배제__ : 적어도 하나의 리소스가 non-sharable 할 때 발생 -> 다른 프로세스들이 모두 read일때, write가 하나라도 끼어들어야 한다.
+2. __Hold and wait__ : 어떤 쓰레드가 적어도 하나의 리소스를 hold 한 이후 wait해야 데드락 발생.
+3. __선점 불가(No preemption)__ : 리소스는 preempted 될 수 없어야 문제가 발생한다.
+4. __cicular wait__ : 서로가 서로를 기다리는 상황이(dependency) 원형으로 이어져야 한다.
+
+- Resource Allocation Graph
+: 데드락을 이해하기 위해 만든 directed graph
+    - vertice V와 edge E로 구성.
+
+    - V의 두가지 노드 타입
+    1. T = {T1,T2,...Tn} : 시스템의 active한 쓰레드 집합
+    2. R = {R1,R2...Rn} : 시스템의 resource 의 집합
+    - _Ti -> Rj_ : i쓰레드가 j인스턴스를 요청
+    - _Rj -> Ti_ : j인스턴스가 i쓰레드에 할당
+
+    <img width="347" alt="image" src="https://user-images.githubusercontent.com/79896709/173276540-dab7f9f1-083c-4af7-a92f-4d84e5bcfe49.png">
+    
+    점은 인스턴스의 개수  
+    T = {T1,T2,T3}  
+    R = {R1,R2,R3,R4}  
+    E = {T1->R1, T2->R3, R1->T2, R2->T2, R2->T1, R3->T3}  
+    - 이 사진에서는 사이클이 없기 때문에 데드락이 발생할 일이 없다.
+
+    <img width="333" alt="image" src="https://user-images.githubusercontent.com/79896709/173276803-febadc49-8b68-4d84-8173-07e59fa6b0b5.png">  
+
+    - 두개의 사이클이 존재  
+    T1->R1->T2->R3->T3->R2->T1  
+    T2->R3->T3->R2->T2  
+
+    데드락이 발생할까? YES! (서로 물고 물리는 관계)
+
+    <img width="416" alt="image" src="https://user-images.githubusercontent.com/79896709/173277275-299a84de-0a97-49aa-ab3e-e30f3306dacd.png">
+
+    - 하나의 사이클 발생
+    T1->R1->T3->R2->T1  
+    - 이 경우에는 데드락이 발생하지 않는다.
+    - T4가 R2를 내려놓으면 T3가 할당받을 공간이 생긴다
+
+- 사이클이 없으면 데드락이 발생하지 않는다.
+- 사이클이 있으면, 데드락이 있을수도 있지만, 없을수도 있다.
+
+### __데드락 문제를 다루는 세가지 방법__
+1. 그냥 발생하든 말든 무시(안일어나겠지..) 
+2. 데드락을 Prevent 하거나 avoid하는 프로토콜 사용
+    - Deadlock prevention(거의 불가능)
+    - Deadlock Acoidance : __Banker's Algorithm__
+3. 데드락이 발생하게 내버려두고, 발생하면 detect하여 recover
+    - Deadlock Detection
+    - Recovery from deadlock 
+
+#### 1. Deadlock Prevention
+ 앞서 봤던 4 necessary condition중 적어도 하나가 발생하지 않도록 막아보자!
+ 1. mutual exclusion: 모든 리소스가 sharable 하게 만든다면 문제 발생하지 않는다.  
+ 그러나 뮤텍스 락등의 본질적으로 non-sharable한 리소스가 있기에 적용하기 매우 어렵다.
+ 2. Hold and Wait: 자원 점유를 하려할때는 기존에 있는 리소스를 모두 내려놓고 점유하게 만들면 되지만, 현실적이지 않다.
+ 3. 선점 불가: preemption이 가능하게 만들면 되지 않나? 마찬가지로 비현실적
+ 4. Circular wait: 제일 현실적.  
+ 리소스 타입에 순서를 부여, 쓰레드가 점유하고 리소스들 보다 더 번호가 높은 리소스만 요청하도록 한다.
+    - starvation의 위협이 존재.
+
+    <img width="1082" alt="image" src="https://user-images.githubusercontent.com/79896709/173278676-dec30097-4a4a-46d8-a9c4-1ec1389e7c80.png">
+
+    atomic한 트랜잭션(계좌이체)  
+    1. 내 계좌, 아빠 계좌에 락을 걸고
+    2. 아빠 계좌에서 돈을 빼서 아들 계좌에 입금
+    -> 출금과 입금은 두개의 락 획득한 상태에서만 이뤄진다
+
+    그러나, 아빠와 아들이 서로에게 돈을 보내려하는 상황에서(별도의 쓰레드로 처리), 서로 다른 lock을 가져가면 __또 데드락이 발생한다.__  
+
+#### 2. Deadlock avoidance
+
+
+
+
+
+
+
+
+
+
