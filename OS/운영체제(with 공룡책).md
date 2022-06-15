@@ -1435,7 +1435,7 @@ Pool에 n개의 버퍼가 있다, 이 버퍼는 각각 하나의 아이템을 �
     2. OpenMP : #paragma omp critical 컴파일러 디렉티브로 임계구역을 지정한다.
     3. 함수형 프로그래밍 언어(명령형 프로그래밍 - instruction에 의존적인 - 의 대안) : 명령형 프로그래밍 언어와 달리 상태를 유지하지 않으므로 경쟁조건이나 교착상태가 발생하지 않는다. 
 
-# 데드락의 이해
+# 데드락
 > 데드락이란, 프로세스 집합안의 모든 프로세스들이 집합의 다른 프로세스에 의해 일어나는 사건을 기다리고 있는 상황.
 
 다시 말해, __waiting 쓰레드나 프로세스가 다시는 자신의 상태를 바꿀 수 없는__ 상황, 왜냐하면 해당 쓰레드(프로세스)가 요청한 리소스가 __다른 waiting하는 쓰레드(프로세스)에 의해 점유__ 돼 있기 때문에.
@@ -1503,7 +1503,7 @@ Pool에 n개의 버퍼가 있다, 이 버퍼는 각각 하나의 아이템을 �
  2. Hold and Wait: 자원 점유를 하려할때는 기존에 있는 리소스를 모두 내려놓고 점유하게 만들면 되지만, 현실적이지 않다.
  3. 선점 불가: preemption이 가능하게 만들면 되지 않나? 마찬가지로 비현실적
  4. Circular wait: 제일 현실적.  
- 리소스 타입에 순서를 부여, 쓰레드가 점유하고 리소스들 보다 더 번호가 높은 리소스만 요청하도록 한다.
+ 리소스 타입에 순서를 부여, 쓰레드가 점유하고 있는 리소스들 보다 더 번호가 높은 리소스만 요청하도록 한다.
     - starvation의 위협이 존재.
 
     <img width="1082" alt="image" src="https://user-images.githubusercontent.com/79896709/173278676-dec30097-4a4a-46d8-a9c4-1ec1389e7c80.png">
@@ -1515,9 +1515,92 @@ Pool에 n개의 버퍼가 있다, 이 버퍼는 각각 하나의 아이템을 �
 
     그러나, 아빠와 아들이 서로에게 돈을 보내려하는 상황에서(별도의 쓰레드로 처리), 서로 다른 lock을 가져가면 __또 데드락이 발생한다.__  
 
-#### 2. Deadlock avoidance
+#### __2. Deadlock avoidance__
+: requsest가 왔을때, 이를 받아주기 전에 future deadlock을 고민해 본 후, 데드락의 가능성이 있으면 받아주지 않고 wait하게 하여 시스템이 데드락에 들어갈 일 없게 한다.
+- 이를 위해서는 리소스가 어떻게 요청되는지에 대한 추가적인 정보가 필요하다.(priori information)
+- 쓰레드(프로세스)가 요구할 최대 자원 갯수를 알고 있으면 좋다.
+
+#### Safe State
+어떤 state(시스템)가 안전하다는 뜻은, 리소스를 각 쓰레드에 __순서에 따라__ maximum까지 할당해줄 수 있다는 것.
+- safe state = safe sequence
+- safe sequence를 찾아내는 것이 deadlock avoidance 알고리즘의 핵심이다.
+
+<img width="314" alt="image" src="https://user-images.githubusercontent.com/79896709/173476895-84318802-7c86-4588-8a6c-b4a2843af48b.png">
+
+- safe state에 있으면 데드락 걸릴 일 없다
+- unsafe state는 데드락을 발생시킬 가능성이 있다.  
+=> 아예 safe state에만 머무르도록 하자!  
+
+- 시스템은 초기에 safe state
+    - 이때 쓰레드가 available한 리소스를 요청하면, 시스템은 요청에 따라 리소스가 할당 될지 아닐지 결정한다.
+
+- Resource Allocation Graph
+    - claim edge 추가: Ti -> Rj 는 Ti가 Rj를 요청해도 돼? 라고 물어보는 것
+    - 이를 RAG에 집어넣어서 사이클이 발생하는지 확인
+    - 사이클이 발생하면 unsafe 상태에 들어가는 것이기에 grant 안됨, 사이클 없으면 바로 grant 해주면 된다.
+
+        <img width="287" alt="image" src="https://user-images.githubusercontent.com/79896709/173477703-f2363d09-c509-4950-ab30-cfa1f3aef149.png">  
+
+        점선의 claim edge는 기다려야 한다 
+    
+    문제는, RAG가 multiple instance를 가진 리소스에 적용이 되지 않는다는 것. 따라서 __Banker's Algorithm__ 을 적용한다.
+
+### Banker's Algorithm  
+
+쓰레드의 개수 n개, 리소스 타입의 개수가 m개.  
+- Available: available 리소스 타입의 개수를 가지고 있는 벡터  
+- Max: 각 쓰레드가 앞으로 요청할 리소스 인스턴스의 최대 개수  
+- Allocation: 현재 할당된 리소스 개수  
+- Need : 각 쓰레드가 앞으로 요청할 remaining resource need 
+
+> Available[j] == k이면, Rj의 k개의 인스턴스가 avaliable 하다는 것   
+
+> Max[i][j] == k 이면, Ti가 최대 k개의 Rj의 인스턴스를 요청할 것이라는 뜻.  
+
+> Allocation[i][j] == k 이면, Ti가 현재 Rj의 k개의 인스턴스를 할당받고 있다는 뜻.  
+
+> Need[i][j] == k이면, Ti는 앞으로 k개의 Rj인스턴스를 요청할 것.  
+
+__예시__ 
+
+<img width="987" alt="image" src="https://user-images.githubusercontent.com/79896709/173479162-b064104e-5d9d-4811-bbdc-a1277223093c.png">
+
+Need[i][j] = Max[i][j] - Allocation[i][j]로 계산하면 된다
+
+Need 값을 구했으므로 MAX는 필요가 없다. 
+
+<img width="526" alt="image" src="https://user-images.githubusercontent.com/79896709/173479504-1f69c987-5c04-4c81-a8f5-f5527b32712f.png">
+
+현 상황에서 safety 알고리즘을 적용한다.
+
+<img width="372" alt="image" src="https://user-images.githubusercontent.com/79896709/173751302-ff543154-7f26-4a03-a249-c4d1dd5f122a.png">
+
+실제 계산한 모습
+
+<img width="422" alt="image" src="https://user-images.githubusercontent.com/79896709/173751865-a48567c8-cb5f-43bb-a030-703a632a9b4f.png">
 
 
+
+이때 T1이 (1, 0 , 2)를 요청했다면, 이 요청이 granted 될지 확인해야 함. => resource-request 알고리즘  
+ 
+<img width="371" alt="image" src="https://user-images.githubusercontent.com/79896709/173751647-c341b840-6c30-49d5-97cc-ab59e23e6a7b.png">
+
+
+<img width="546" alt="image" src="https://user-images.githubusercontent.com/79896709/173482441-314be6df-589c-49e1-ae6d-f15898ccc6a7.png">
+
+이 상황에서 다시 safety 알고리즘을 돌려보면 된다.
+=> 마찬가지로 T1 T3 T4 T0 T2 순서가 나온다.
+=> 이 경우 request받아줘도 되기에 grant한다.   
+
+### Deadlock Detection
+
+- multiple instance의 경우, banker's algorithm과 비슷한 알고리즘을 적용하되, request를 받아들이고(banker는 받아들이기 전) 알고리즘을 적용하면 된다.
+
+- Deadlock Recovery
+    - 모든 데드락 걸린 프로세스를 정지시키고 재시작
+    - 한 프로세스 죽여보고, 데드락이 해소되면 끝, 아니면 또 하나 죽여보고... 이런식으로 시간당 하나씩 죽여보는 방법
+    - 희생양을 선정해서, 해당 쓰레드의 resource를 뺐어서 그 놈을 요청한 쓰레드에게 주고 롤백하기.
+        - 각 쓰레드별로 victim이 된 횟수 기록해서 starvation 방지.
 
 
 
