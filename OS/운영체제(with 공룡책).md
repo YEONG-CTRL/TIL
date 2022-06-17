@@ -4,6 +4,10 @@
 - [Thread](#thread와-concurrency)
 - [Cpu Scheduling](#CPU-Scheduling)
 - [Synchronization Tools](#Synchronization-Tools)
+- [Synchronization Examples](#synchronization-examples)
+- [Deadlocks](#데드락)
+- [Main Memory](#main-memory)
+
 
 <br></br>    
 
@@ -1601,6 +1605,147 @@ Need 값을 구했으므로 MAX는 필요가 없다.
     - 한 프로세스 죽여보고, 데드락이 해소되면 끝, 아니면 또 하나 죽여보고... 이런식으로 시간당 하나씩 죽여보는 방법
     - 희생양을 선정해서, 해당 쓰레드의 resource를 뺐어서 그 놈을 요청한 쓰레드에게 주고 롤백하기.
         - 각 쓰레드별로 victim이 된 횟수 기록해서 starvation 방지.
+
+# Main Memory
+Process : 메인 메모리에 로드돼 있는 명령어들의 집합(Program in execution)
+
+Memory: large __array of bytes__ , each with its __own address__
+
+## Memory Space
+각 프로세스가 분리된 memory space를 가질 수 있게 해줘야 함.  
+- base register와 limit register를 가지고 합법적인 주소를 결정. 
+<img width="422" alt="image" src="https://user-images.githubusercontent.com/79896709/174260522-77831ba0-e7cf-40aa-9667-8a9cc6cfbf09.png">
+
+-> 만약 illegal access라면 __segmentation fault__ 발생.
+
+- Address Binding
+    : 프로그램은 disk에 binary 실행파일로 존재한다.  
+    이를 실행시키기 위해 프로그램을 메모리에 가지고 오면, 그때 프로세스가 된다.  
+    - 이 프로세스의 주소는 OS가 결정해준다.
+    - 소스코드에서 symbolic(기호화하여) 지정해준 주소를 __컴파일러가 relocatable(위치를 다시 부여할 수 있는) 주소와 binding 해준다.__ 
+    - linker 혹은 loader가 절대 주소와 relocatable 주소를 binding한다.  
+    
+       <img width="472" alt="image" src="https://user-images.githubusercontent.com/79896709/174261953-4cdb23c6-995c-425f-96a9-d05a67ec4975.png">
+    
+    - logical address 와 Physical address space를 표현하는 방법이 분리돼야 한다.
+    - 이를 분리하기 위해서 하드웨어 - MMU(Memory Management Unit) - 을 사용한다.
+
+        <img width="736" alt="image" src="https://user-images.githubusercontent.com/79896709/174262509-bed24fb9-05a5-40ad-ada1-ab69e1264ea6.png">
+        : logical adrress를 physical address로 변환.  
+<div></div>
+
+- Dynamic Loading
+: 프로그램과 데이터 전체가 Physical 메모리에 로딩돼야 하는가? -> 아니다, 그러면 너무 무거워진다.  
+따라서, 메모리 주소공간의 효율적 사용을 위해 __필요할때에만 루틴을 호출한다.__
+
+- Dynamic Linking과 Shared Libraries
+    - DLLs: Dynamically Linked Libraries
+    - 프로그램이 실행되는 중에 user program에 Linking되는 시스템 라이브러리들.
+    - 프로세스가 아닌 라이브러리만 로딩하여, 필요할때 링킹해서 사용.
+    - static linking: 시스템 라이브러리들은 다른 객체 모듈처럼 loader에 의해 program으로 합쳐진다.
+    - dynamic linking: loading을 dynamic하게 하는 것처럼, linking을 실행시까지 연기하여, 실행하는 중에 linking 수행
+
+- Memort Allocation   
+    1. 프로세스의 크기는 알 수 없다 
+    2. 그렇기에 메모리 영역 자체는 variable 하다.
+    3. 어떤 프로세스를 어떻게 할당하는지가 문제가 된다.
+    <img width="841" alt="image" src="https://user-images.githubusercontent.com/79896709/174289923-6b15d4f1-a0de-4f59-816c-ec00ea8d5d23.png">
+    hole: available한 메모리 공간
+
+1. __Contiguous Memory Allocation(연속 메모리 할당)__   
+: 메모리를 최대한 효율적인 방식으로 할당해야 한다.  
+메모리는  
+    1. 운영체제를 위한 공간
+    2. 유저 프로세스를 위한 공간   
+각 프로세스는 하나의 공간에(single section) 통째로 올라가기에 연속 메모리 할당이라고 하는 것.  
+
+
+
+    - Dynamic Storage Allocation의 문제  
+    :size n의 요청에 대해 free hole을 어떻게 할당해 줄 것이냐?  
+    1. First Fit: 넣을 수 있는 첫번째 공간에 할당  
+    2. Best Fit : 가장 작은 hole부터 확인해서 들어가면 할당
+    3. Worst Fit: 가장 큰 hole부터 할당  
+
+    - Fragmentation의 문제  
+    
+        - 외부 단편화 : hole에 할당하면서, 남는 공간이 생기다보니 짜잘한 여러개의 hole들로 메모리가 쪼개진다.(다 합치면 request를 해결할 충분한 공간이 나옴)
+        - 내부 단편화 : 프로세스에 할당된 메모리는 요청받은 메모리보다 살짝 크다, 하나의 프레임 안에 조금의 공간이 남는다.  
+
+2. __Paging__ : 프로세스의 physical space를 contiguous하지 않도록 쪼개는 것.  
+    - external fragmentation을 완화시킨다.  
+    - 압축(남는 hole들을)에 대한 필요성이 줄어든다
+    - Physical Memory를 fixed size로 쪼갠다 : frame
+    - Logical Memory를 같은 size의 블록으로 쪼갠다 : pages  
+    => Logical과 Physical공간의 바인딩을 완전히 끊어버린다.  
+
+    - Paging의 기본적인 방법  
+    : CPU에의해 생성된 모든 address는 두가지 공간으로 나눠진다.  
+        1. page number
+        2. page offset  
+    -> 이것이 Logical address가 된다.  
+
+    <img width="824" alt="image" src="https://user-images.githubusercontent.com/79896709/174292841-a65cac87-70f4-4725-87ce-b41c20db1d03.png">  
+    d(오프셋)은 physical address로 넘어와도 여전히 같은 값을 유지하여서 프레임에 어느 위치인지를 알려준다.  
+    
+    1. page number로 그에 해당하는 frame을 찾는다.  
+    2. 그 frame의 offset을 가지고 메모리에 access를 할 수 있다.  
+
+    페이지 사이즈는 4kb~1GB사이의 2의 배수.  
+    - logical address space가 2^m, page size가 2^n일시, page number는 m-n bit가 필요.  
+    - page offset은 n 비트가 필요.  
+
+    __PTBR__ : page table base register  
+    page table은 메인 메모리에 두되, PTBR을 가지고 페이지 테이블을 가리킨다.  
+    <img width="748" alt="image" src="https://user-images.githubusercontent.com/79896709/174294571-5b08df75-07b0-4a02-9e37-c39a26a56607.png">
+
+    context swtich는 빠르나, memory access time은 느리다.  
+    왜냐? PTBR에 access하고 실제 page table에 access해야한다(두번) 
+
+    __TLB__ : Translation look-aside Buffer  
+
+    <img width="566" alt="image" src="https://user-images.githubusercontent.com/79896709/174295232-ada4ce6b-4817-4c5b-ad28-d2fc47cd119f.png">  
+    : 작고 빠른 캐시메모리를 사용하여 TLB hit를 통해 바로 하드웨어로 access할 수 있다.  
+    - TLB hit: 우리가 찾고자하는 페이지가 TLB안에 포함돼 있을 경우.  
+    - TLB miss: 찾고자 하는 페이지가 TLB에 없어서 page table을 확인해야 함  
+    - hit ratio : TLB hit가 되는 확률.   
+    
+    Paging이 도입했을시의 Memory protection:   
+    각 frame 별로 valid/invalid에 대한 정보를 담은 bit를 추가.  
+    - valid하다는 것은, 해당 페이지가 logical address space에 포함돼있기에 valid 한 것.  
+
+    - shared page: common code를 공유하기 매우 좋음. 공용으로 쓰이는 printf()가 포함된 libc라이브러리를  모든 주소에 각각 실제로 가지고 있기보다는, 논리적으로 가지고 있으면서 공유하는 것이 효율적이다.  
+
+    - Hierarchical Paging
+    <img width="1115" alt="image" src="https://user-images.githubusercontent.com/79896709/174297697-4affb8f1-ff1d-4b73-8eaf-937cc1bcfd86.png">
+    
+    - Hashed Page Table
+
+        <img width="688" alt="image" src="https://user-images.githubusercontent.com/79896709/174297810-a9a28c60-2931-4a4c-a587-51f5370cdb21.png">
+
+    - Inverted Page Table
+     프로세스 pid를 가지고 어떤 프로세스가 어떤 페이지 가지고 있는지 역으로 저장한다.  
+     <img width="609" alt="image" src="https://user-images.githubusercontent.com/79896709/174298324-322a577d-d9ad-4630-a913-e9ae6fdb1908.png">
+
+3 __Swapping__ : physical address보다 훨씬 더 큰 프로그램도 존재할 수 있다. 
+- real physical 메모리 사이즈보다 더 큰 logical memory를 사용한다.   
+- 따라서 극단적으로 각 프로세스를 한 페이지 씩만 올린 이후, 계속 바꿔가면서(swapping) 사용(multiprogramming 정도가 증가한다)
+<img width="454" alt="image" src="https://user-images.githubusercontent.com/79896709/174298893-2556de6d-6862-489c-a767-d6b6a40eb574.png">
+
+프로세스 전체를 swapping하는 것이 아닌, 프로세스 일부를 __페이지 단위로__ swap in - swap out  
+= Paing in - Paging out  
+
+
+
+
+
+
+
+
+
+
+    
+
 
 
 
