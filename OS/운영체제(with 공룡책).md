@@ -7,6 +7,7 @@
 - [Synchronization Examples](#synchronization-examples)
 - [Deadlocks](#데드락)
 - [Main Memory](#main-memory)
+- [Virtual Memory](#virtual-memory)
 
 
 <br></br>    
@@ -1734,6 +1735,168 @@ Memory: large __array of bytes__ , each with its __own address__
 
 프로세스 전체를 swapping하는 것이 아닌, 프로세스 일부를 __페이지 단위로__ swap in - swap out  
 = Paing in - Paging out  
+
+
+# Virtual Memory
+: 프로세스의 execution을 메모리에 다 올리지 않아도 실행을 할 수 있도록 하는 기술(Physical memory보다 program이 커도 실행 가능)
+
+- 메인 메모리를 극도로 큰 저장공간으로 추상화하여서, logical memory와 physical memory를 분리한다. 
+
+<img width="619" alt="image" src="https://user-images.githubusercontent.com/79896709/174572348-71cc1f64-a1c5-48d1-a31a-b69085d5c60e.png">
+
+
+## Virtual Address Space
+: Logical(virtual)하게 프로세스가 메모리에 저장되는 방법  
+
+- 0 으로 시작해서 max까지 커진다
+
+    <img width="238" alt="image" src="https://user-images.githubusercontent.com/79896709/174572869-b1700805-be38-4d2b-bae0-8dd55f400089.png">
+
+- virtual memory를 사용하면 파일과 메모리의 공유가 용이해진다.
+
+    <img width="595" alt="image" src="https://user-images.githubusercontent.com/79896709/174573247-ae201c3e-7187-49a0-bf35-f965e4239fb8.png">
+    
+    - page sharing을 통하여 파일과 메모리를 여러 프로세스에서 공유
+
+
+## __Demand Paging__ 
+__Executable한 program의 동작과정__  
+1. HDD,SDD등의 seconday 저장소에서 메모리로 프로그램이 로딩이 된다.(로딩되면 프로세스)
+2. 이때, physical memory에 전체 프로그램을 다 로딩하거나(contiguous memory allocation)
+3. 프로그램을 page단위로 잘라서 올리는 방식이 있다.
+4. 3번의 경우, page단위로 올리는 시점은 demand(필요)할때이다. - 주로 virtual memory system에서 사용  
+
+이때, Demand시 로딩되는 페이지들을 어떻게 관리할 것이냐. 라는 문제가 생긴다 : __Demand Paging__
+- 프로세스가 실행중일때, 페이지는 메모리에 있거나 secondary storage에 존재한다.  
+- 이 두가지 상황을 구분하려면
+    - valid - invalid bit 사용
+    - valid : legal, in memory.
+    - invalid : not valid, in secondary storage.
+
+    <img width="568" alt="image" src="https://user-images.githubusercontent.com/79896709/174575300-d8ede9d6-4a08-4ba0-aaf2-425272470bb9.png">
+
+    Free Frame List: 비어있는 프레임은 Linked List로 관리한다.
+
+
+- Page Fault: 아직 메모리에 로딩되지 않은 페이지에 access 했을때 발생.  
+    1.  internal page table 확인해서 valid유무 체크
+    2. vaild면 처리, invalid시 page fault
+    3. page fault시 메모리에 로드해줘야(page in)
+    4. 로드를 위해 메모리에 비어있는 frame을 찾는다. 
+    5. second storage에서 페이지를 읽어서, free frame(빈프레임)에 할당.
+    6. invalid bit를 vaild로 변경
+
+    <img width="634" alt="image" src="https://user-images.githubusercontent.com/79896709/174576130-89e1f477-e2f3-4935-bd6c-432a7e11ee5d.png">
+
+__Pure Demand Paging__ : 요청을 하지 않으면 절대로 페이지를 가져오지 않는다.  
+1. 제일 처음 시작시에도 단 하나의 페이지도 메모리에 로드하지 않는다.
+2. 실행하려는데 page Falut 일어나면 그때가서 로드한다.  
+- 그때그때 페이지를 로드해야하기 때문에, page fault가 계속 일어나는 단점이 있다.
+
+__Locality of Reference(참조국부성)__ : 만약 프로그램이 각각의 명령어마다 new pages에 접근한다면, multiple page faults per instruction(페이지 당 여러개 page fault)발생  
+
+다행히도, running process에서는 이러한 문제가 잘 생기지 않는다.  
+프로그램은 __참조국부성__ 이 있기때문에, demand paging을 통해 합리적 성능을 낼 수 있다.  
+
+예시.  
+```
+int i,j;
+int[128][128] data;
+
+for (j=0; j<128; j++)
+    for (i=0; i<128; i++)
+        data[i][j] = 0;
+```
+j = 0일때, i는 0,1,2,3......
+이때 두번째 페이지 영역은 data[1][0]
+매번 페이지 영역이(i)가 바뀌므로 page fault가 난다.
+
+```
+for (i=0; i<128; i++)
+    for (j=0; j<128; j++)
+        data[i][j] = 0;
+```
+하지만 이 경우에는 로딩된 페이지(data[i]) 안에서 j가 for문 돌기에 page fault가 나지 않는다. -> __훨씬 효율적!__
+
+
+### Demand Paing을 위한 하드웨어 지원  
+- page table      : valid-invalid 표시  
+- Seconday Memory : swap space라고 부름. 메인 메모리에 있지 않은 페이지들을 저장.
+
+### Instruction Restart
+page fault일어났을때 instruction restart.  
+이때 운영체제에 trap을 걸어서, running process를 wait 큐에 보낸다. page in이 다 끝나고나면 프로세스는 재진입.  
+- 따라서, page fault 일어났을때 swap out 되는 프로세스의 상태는 저장된다. 이 상태는 유지돼서 재실행시 그대로 적용되야 한다.  
+- 그래서, 프로세스별로 page table을 잘 관리해야 한다.
+- 또한 ,instruction fetch시 page fault 발생하면 재실행시 instruction을 다시 fetch해야 한다.  
+
+예시   
+ADD A,B,C : 명령어 하나에 address참조 3번일어남.  
+A와 B를 ALU가 더해서, C에 저장.  
+1. Fetch하고 instruction decode (ADD)
+2. Fetch A  
+3. Fetch B
+4. ADD A and B
+5. Store sum in   
+=> 1~5어디서 page fault 일어나든간에, 1번부터 다시 fetch해서 시작해야 한다.  
+
+### Performance of Demand Paging
+:demand-paged memory의 effective access time(EAT)을 계산해야 한다
+.  
+- ma : memory access 하는 시간
+- P : page fault 일어날 확률
+- EAT = (1-p) * ma + p* (__page fault time__)
+
+page fault time의 세가지 척도   
+1. page fault 때문에 trap 걸어주는 시간 
+2. 페이지를 읽어들이는 시간 --> 대부분의 시간은 여기서 소모 
+3. 프로세스를 restart하는 시간  
+
+
+## Copy On Write
+ write를 할때에만 shared page를 copy 하자.  
+ 무언가 쓰기 전까지는 공유해서 쓰자는 의미.
+
+## __페이지 교체 알고리즘__
+메모리에 free frame이 없다면?  
+-> frame을 비워줄 victim을 찾는것이 페이지 교체  
+swap space 영역에 있는 페이지를 가져와서 교체하고, 기존 페이지는 invalid하다고 체크해줘야 한다.
+
+<img width="798" alt="image" src="https://user-images.githubusercontent.com/79896709/174587615-ae751b2a-e0df-4fd4-ad38-fdd363c6b611.png">
+
+1. Secondary storage에 desired page의 위치를 찾는다
+2. Free frame을 찾는다, 만약 없다면 Page Replacement 알고리즘을 적용하여 victim을 정해야만 한다.
+3. victim이 정해지면 위의 사진대로 진행하면 된다.  
+
+이때 중요한 것은,  
+1. 각 프로세스에 얼만큼의 프로세스가 할당될 것인가?
+2. 어떤 프레임을 교체할 것인가?  
+    - Second Storage에 I/O하는 것은 시간이 많이 걸리기 때문에, 여기서의 성능이 시스템 효율에 큰 영향을 준다.  
+    - Page Replacement Algorithm
+        - 목표: page fault 의 비율을 낮추는 것.  
+        - 이때, reference string. 메모리 참조 문자열(메모리 참조를 페이지번호로 나열)을 사용한다.
+
+### __PR Algorithm__ 
+1. FIFO: 가장 먼저온 놈을 가장 먼저 쫓아낸다(replace oldest)
+    - Belady's Anomaly 발생: page fault rates가 allocated frame이 늘어날 수록 함께 늘어나는 이상한 현상 발생.
+
+2. Optimal Page Replacement: Belady's anomaly를 겪지 않는 최소 page fault rate를 가진 알고리즘.  
+: 앞으로 가장 긴 시간동안 사용 안될것 같은 페이지를 교체하자.  
+- 문제는 OPT알고리즘은 __미래에 대한 지식__ 이 필요하다는 것. 
+- 따라서, 그냥 성능의 척도로만 사용한다.  
+
+이때, FIFO는 과거를 바라보고(이 페이지가 언제 도착했는가), OPT는 미래를 바라보고 선정하는데, 앞서 Shortest Job First(SJF)에서 봤듯이 미래를 과거를 통해 유추할 수 있다.  
+
+- __오랜 기간동안 사용하지 않은 페이지는 미래에도 사용하지 않을 가능성이 높지 않을까?__ 라고 유추해볼 수 있다, 이를 통해 만든것이...
+
+3. LRU(Least Recently Used)
+: 각 페이지가 마지막으로 사용된 시간을 기록해놓고, 마지막으로 사용된 시간 기록이 가장 긴 것을 교체한다.  
+
+
+
+           
+
+
 
 
 
